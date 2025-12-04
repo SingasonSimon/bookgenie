@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookText, Plus, X, Edit, Trash2 } from 'lucide-react'
+import { BookText, Plus, X, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
 import BookDetailsModal from '../BookDetailsModal'
@@ -22,6 +22,9 @@ export default function BooksTab() {
   const [selectedBook, setSelectedBook] = useState(null)
   const [bookToDelete, setBookToDelete] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
+  const perPage = 12
   const api = new BookGenieAPI()
 
   const showNotification = (message, type = 'info') => {
@@ -30,14 +33,16 @@ export default function BooksTab() {
   }
 
   useEffect(() => {
-    loadBooks()
-  }, [])
+    loadBooks(currentPage)
+  }, [currentPage])
 
-  const loadBooks = async () => {
+  const loadBooks = async (page = 1) => {
     try {
+      setLoading(true)
       const token = localStorage.getItem('bookgenie_token')
-      const booksData = await api.getBooks(token)
-      setBooks(booksData)
+      const result = await api.getBooks(token, { page, per_page: perPage })
+      setBooks(result.books || [])
+      setPagination(result.pagination)
     } catch (error) {
       console.error('Books error:', error)
       showNotification('Failed to load books', 'error')
@@ -52,7 +57,7 @@ export default function BooksTab() {
       // Update existing book
       await api.updateBook(selectedBook.id, bookData, token)
       showNotification('Book updated successfully', 'success')
-      await loadBooks()
+      await loadBooks(currentPage)
       setShowEditModal(false)
       setSelectedBook(null)
       return { id: selectedBook.id }
@@ -60,7 +65,8 @@ export default function BooksTab() {
       // Create new book
       const result = await api.createBook(bookData, token)
       showNotification('Book created successfully', 'success')
-      await loadBooks()
+      await loadBooks(1) // Go to first page to see new book
+      setCurrentPage(1)
       setShowAddModal(false)
       return result
     }
@@ -73,7 +79,14 @@ export default function BooksTab() {
       const token = localStorage.getItem('bookgenie_token')
       await api.deleteBook(bookToDelete.id, token)
       showNotification('Book deleted successfully', 'success')
-      await loadBooks()
+      // If current page becomes empty, go to previous page
+      if (books.length === 1 && currentPage > 1) {
+        const newPage = currentPage - 1
+        setCurrentPage(newPage)
+        await loadBooks(newPage)
+      } else {
+        await loadBooks(currentPage)
+      }
       setShowDeleteModal(false)
       setBookToDelete(null)
     } catch (error) {
@@ -205,6 +218,89 @@ export default function BooksTab() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.total_pages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (currentPage > 1) {
+                setCurrentPage(currentPage - 1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Previous
+          </motion.button>
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+              let pageNum
+              if (pagination.total_pages <= 5) {
+                pageNum = i + 1
+              } else if (currentPage <= 3) {
+                pageNum = i + 1
+              } else if (currentPage >= pagination.total_pages - 2) {
+                pageNum = pagination.total_pages - 4 + i
+              } else {
+                pageNum = currentPage - 2 + i
+              }
+              
+              return (
+                <motion.button
+                  key={pageNum}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    setCurrentPage(pageNum)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={`w-10 h-10 rounded-lg ${
+                    currentPage === pageNum
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {pageNum}
+                </motion.button>
+              )
+            })}
+          </div>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (currentPage < pagination.total_pages) {
+                setCurrentPage(currentPage + 1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            disabled={currentPage === pagination.total_pages}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              currentPage === pagination.total_pages
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
+          >
+            Next
+            <ChevronRight className="w-5 h-5" />
+          </motion.button>
+          
+          <span className="text-sm text-gray-600 ml-4">
+            Page {currentPage} of {pagination.total_pages} ({pagination.total} total)
+          </span>
         </div>
       )}
 

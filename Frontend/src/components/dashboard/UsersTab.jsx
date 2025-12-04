@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Users, User, Shield, Mail, Eye, Edit, Trash2 } from 'lucide-react'
+import { Users, User, Shield, Mail, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import PageHeader from '../PageHeader'
 import UserEditModal from '../admin/UserEditModal'
 import UserViewModal from '../admin/UserViewModal'
 import DeleteConfirmModal from '../admin/DeleteConfirmModal'
+import SubscriptionRequestModal from '../admin/SubscriptionRequestModal'
 import Notification from '../Notification'
 import { GridSkeleton } from '../LoadingSkeleton'
 import { BookGenieAPI } from '../../services/api'
@@ -17,28 +18,35 @@ export default function UsersTab() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showRequestModal, setShowRequestModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [userToDelete, setUserToDelete] = useState(null)
+  const [selectedRequest, setSelectedRequest] = useState(null)
   const [saving, setSaving] = useState(false)
   const [processingRequest, setProcessingRequest] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
+  const perPage = 12
   const api = new BookGenieAPI()
 
   useEffect(() => {
-    loadUsers()
+    loadUsers(currentPage)
     loadSubscriptionRequests()
-  }, [])
+  }, [currentPage])
 
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
   }
 
-  const loadUsers = async () => {
+  const loadUsers = async (page = 1) => {
     try {
+      setLoading(true)
       const token = localStorage.getItem('bookgenie_token')
-      const usersData = await api.getUsers(token)
-      setUsers(usersData)
+      const result = await api.getUsers(token, { page, per_page: perPage })
+      setUsers(result.users || [])
+      setPagination(result.pagination)
     } catch (error) {
       console.error('Users error:', error)
       showNotification('Failed to load users', 'error')
@@ -55,7 +63,7 @@ export default function UsersTab() {
       const token = localStorage.getItem('bookgenie_token')
       await api.updateUser(selectedUser.id, formData, token)
       showNotification('User updated successfully', 'success')
-      await loadUsers()
+      await loadUsers(currentPage)
       setShowEditModal(false)
       setSelectedUser(null)
     } catch (error) {
@@ -73,7 +81,14 @@ export default function UsersTab() {
       const token = localStorage.getItem('bookgenie_token')
       await api.deleteUser(userToDelete.id, token)
       showNotification('User deleted successfully', 'success')
-      await loadUsers()
+      // If current page becomes empty, go to previous page
+      if (users.length === 1 && currentPage > 1) {
+        const newPage = currentPage - 1
+        setCurrentPage(newPage)
+        await loadUsers(newPage)
+      } else {
+        await loadUsers(currentPage)
+      }
       setShowDeleteModal(false)
       setUserToDelete(null)
     } catch (error) {
@@ -94,14 +109,18 @@ export default function UsersTab() {
     }
   }
 
-  const handleApproveRequest = async (requestId) => {
-    setProcessingRequest(requestId)
+  const handleApproveRequest = async () => {
+    if (!selectedRequest) return
+    
+    setProcessingRequest(selectedRequest.id)
     try {
       const token = localStorage.getItem('bookgenie_token')
-      await api.approveSubscriptionRequest(requestId, token)
+      await api.approveSubscriptionRequest(selectedRequest.id, token)
       showNotification('Subscription request approved', 'success')
       await loadSubscriptionRequests()
-      await loadUsers()
+      await loadUsers(currentPage)
+      setShowRequestModal(false)
+      setSelectedRequest(null)
     } catch (error) {
       console.error('Approve error:', error)
       showNotification(error.message || 'Failed to approve request', 'error')
@@ -110,13 +129,17 @@ export default function UsersTab() {
     }
   }
 
-  const handleRejectRequest = async (requestId) => {
-    setProcessingRequest(requestId)
+  const handleRejectRequest = async (rejectionMessage) => {
+    if (!selectedRequest) return
+    
+    setProcessingRequest(selectedRequest.id)
     try {
       const token = localStorage.getItem('bookgenie_token')
-      await api.rejectSubscriptionRequest(requestId, token)
+      await api.rejectSubscriptionRequest(selectedRequest.id, rejectionMessage, token)
       showNotification('Subscription request rejected', 'success')
       await loadSubscriptionRequests()
+      setShowRequestModal(false)
+      setSelectedRequest(null)
     } catch (error) {
       console.error('Reject error:', error)
       showNotification(error.message || 'Failed to reject request', 'error')
@@ -229,6 +252,89 @@ export default function UsersTab() {
         </div>
       )}
 
+      {/* Pagination */}
+      {pagination && pagination.total_pages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (currentPage > 1) {
+                setCurrentPage(currentPage - 1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Previous
+          </motion.button>
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+              let pageNum
+              if (pagination.total_pages <= 5) {
+                pageNum = i + 1
+              } else if (currentPage <= 3) {
+                pageNum = i + 1
+              } else if (currentPage >= pagination.total_pages - 2) {
+                pageNum = pagination.total_pages - 4 + i
+              } else {
+                pageNum = currentPage - 2 + i
+              }
+              
+              return (
+                <motion.button
+                  key={pageNum}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    setCurrentPage(pageNum)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={`w-10 h-10 rounded-lg ${
+                    currentPage === pageNum
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {pageNum}
+                </motion.button>
+              )
+            })}
+          </div>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (currentPage < pagination.total_pages) {
+                setCurrentPage(currentPage + 1)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            disabled={currentPage === pagination.total_pages}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              currentPage === pagination.total_pages
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
+          >
+            Next
+            <ChevronRight className="w-5 h-5" />
+          </motion.button>
+          
+          <span className="text-sm text-gray-600 ml-4">
+            Page {currentPage} of {pagination.total_pages} ({pagination.total} total)
+          </span>
+        </div>
+      )}
+
       {/* Subscription Requests Section */}
       {subscriptionRequests.length > 0 && (
         <div className="mt-8">
@@ -240,7 +346,12 @@ export default function UsersTab() {
                   key={request.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  onClick={() => {
+                    setSelectedRequest(request)
+                    setShowRequestModal(true)
+                  }}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:border-primary-300 hover:shadow-md transition-all"
                 >
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">{request.userName}</div>
@@ -254,25 +365,8 @@ export default function UsersTab() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleApproveRequest(request.id)}
-                      disabled={processingRequest === request.id}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processingRequest === request.id ? 'Processing...' : 'Approve'}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleRejectRequest(request.id)}
-                      disabled={processingRequest === request.id}
-                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processingRequest === request.id ? 'Processing...' : 'Reject'}
-                    </motion.button>
+                  <div className="text-sm text-gray-500">
+                    Click to manage
                   </div>
                 </motion.div>
               ))}
@@ -320,6 +414,19 @@ export default function UsersTab() {
             setShowDeleteModal(false)
             setUserToDelete(null)
           }}
+        />
+      )}
+
+      {showRequestModal && selectedRequest && (
+        <SubscriptionRequestModal
+          request={selectedRequest}
+          onClose={() => {
+            setShowRequestModal(false)
+            setSelectedRequest(null)
+          }}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+          loading={processingRequest === selectedRequest.id}
         />
       )}
 

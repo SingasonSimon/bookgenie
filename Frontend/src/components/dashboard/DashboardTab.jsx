@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { BookOpen, Search, BookMarked, Star, Sparkles, Users, AlertCircle, UserPlus } from 'lucide-react'
+import { BookOpen, Search, BookMarked, Star, Sparkles, Users, AlertCircle, UserPlus, TrendingUp, Clock, MessageSquare, BarChart3, Activity, Zap, Eye } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
 import BookDetailsModal from '../BookDetailsModal'
@@ -8,7 +8,7 @@ import PageHeader from '../PageHeader'
 import { StatCardSkeleton, GridSkeleton } from '../LoadingSkeleton'
 import { BookGenieAPI } from '../../services/api'
 
-export default function DashboardTab() {
+export default function DashboardTab({ onNavigateToTab }) {
   const { user } = useAuth()
   const [stats, setStats] = useState(null)
   const [analytics, setAnalytics] = useState(null)
@@ -50,7 +50,7 @@ export default function DashboardTab() {
     }
   }
 
-  // Admin stat cards
+  // Admin stat cards - Expanded
   const adminStatCards = [
     {
       icon: Users,
@@ -58,6 +58,8 @@ export default function DashboardTab() {
       label: 'Total Users',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      trend: analytics?.dailyStats?.newUsers || 0,
+      trendLabel: 'new today',
     },
     {
       icon: BookOpen,
@@ -67,11 +69,29 @@ export default function DashboardTab() {
       bgColor: 'bg-purple-50',
     },
     {
+      icon: Search,
+      value: analytics?.totalStats?.totalSearches || 0,
+      label: 'Total Searches',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      trend: analytics?.dailyStats?.searches || 0,
+      trendLabel: 'today',
+    },
+    {
+      icon: BookMarked,
+      value: analytics?.totalStats?.totalReadingSessions || 0,
+      label: 'Reading Sessions',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      trend: analytics?.dailyStats?.readingSessions || 0,
+      trendLabel: 'today',
+    },
+    {
       icon: UserPlus,
       value: analytics?.dailyStats?.newUsers || 0,
       label: 'New Users Today',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
     },
     {
       icon: AlertCircle,
@@ -79,6 +99,7 @@ export default function DashboardTab() {
       label: 'Pending Requests',
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
+      clickable: true,
     },
   ]
 
@@ -133,32 +154,234 @@ export default function DashboardTab() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
           {statCards.map((stat, idx) => {
             const Icon = stat.icon
+            const isPendingRequests = isAdmin && stat.clickable && stat.value > 0
             return (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                whileHover={{ y: -2 }}
-                className="card"
+                whileHover={{ y: -2, scale: isPendingRequests ? 1.02 : 1 }}
+                onClick={() => {
+                  if (isPendingRequests && onNavigateToTab) {
+                    onNavigateToTab('users')
+                  }
+                }}
+                className={`card ${isPendingRequests ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
-                    <Icon className={`w-6 h-6 ${stat.color}`} />
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${stat.bgColor} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${stat.color}`} />
                   </div>
-                  <div>
-                    <div className={`text-2xl font-bold text-gray-900 ${stat.capitalize ? 'capitalize' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xl sm:text-2xl font-bold text-gray-900 ${stat.capitalize ? 'capitalize' : ''}`}>
                       {stat.value}
                     </div>
-                    <div className="text-gray-600 text-sm font-medium">{stat.label}</div>
+                    <div className="text-gray-600 text-xs sm:text-sm font-medium truncate">
+                      {stat.label}
+                    </div>
+                    {stat.trend !== undefined && stat.trend > 0 && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <TrendingUp className="w-3 h-3 text-green-600" />
+                        <span className="text-xs text-green-600 font-semibold">{stat.trend} {stat.trendLabel}</span>
+                      </div>
+                    )}
+                    {isPendingRequests && (
+                      <div className="text-xs text-amber-600 font-semibold mt-1">
+                        Click to view
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
             )
           })}
+        </div>
+      )}
+
+      {/* Admin Dashboard Content */}
+      {isAdmin && !loading && analytics && (
+        <div className="space-y-6">
+          {/* Subscription Distribution */}
+          {analytics.subscriptionStats && Object.keys(analytics.subscriptionStats).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="card"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <BarChart3 className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-display font-bold text-gray-900">Subscription Distribution</h2>
+              </div>
+              <div className="space-y-4">
+                {Object.entries(analytics.subscriptionStats).map(([level, count]) => {
+                  const total = Object.values(analytics.subscriptionStats).reduce((sum, c) => sum + c, 0)
+                  const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0
+                  const colors = {
+                    premium: { bg: 'bg-yellow-500', text: 'text-yellow-700', label: 'Premium' },
+                    basic: { bg: 'bg-blue-500', text: 'text-blue-700', label: 'Basic' },
+                    free: { bg: 'bg-gray-500', text: 'text-gray-700', label: 'Free' }
+                  }
+                  const color = colors[level] || colors.free
+                  
+                  return (
+                    <div key={level} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Star className={`w-4 h-4 ${color.text}`} />
+                          <span className="font-medium text-gray-900 capitalize">{color.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-900">{count}</span>
+                          <span className="text-xs text-gray-500">({percentage}%)</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          transition={{ duration: 0.8, delay: 0.3 }}
+                          className={`h-full ${color.bg} rounded-full`}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Two Column Layout for Popular Searches and Active Users */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Popular Searches */}
+            {analytics.popularSearches && analytics.popularSearches.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Search className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Popular Searches</h2>
+                  <span className="text-xs text-gray-500 ml-auto">Last 7 days</span>
+                </div>
+                <div className="space-y-3">
+                  {analytics.popularSearches.slice(0, 8).map((search, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + idx * 0.05 }}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                          {idx + 1}
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 truncate">{search.query}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Eye className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-gray-700">{search.count}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Active Users */}
+            {analytics.activeUsers && analytics.activeUsers.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Activity className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Most Active Users</h2>
+                  <span className="text-xs text-gray-500 ml-auto">This week</span>
+                </div>
+                <div className="space-y-3">
+                  {analytics.activeUsers.slice(0, 8).map((user, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + idx * 0.05 }}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                          {user.name?.[0] || user.email?.[0] || 'U'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{user.name || user.email}</div>
+                          <div className="text-xs text-gray-500 truncate">{user.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">Searches</div>
+                          <div className="text-sm font-semibold text-gray-900">{user.searchCount || 0}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">Reads</div>
+                          <div className="text-sm font-semibold text-gray-900">{user.readingCount || 0}</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Quick Stats Grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-blue-900">{analytics.dailyStats?.searches || 0}</div>
+                  <div className="text-sm font-medium text-blue-700 mt-1">Searches Today</div>
+                </div>
+                <Search className="w-10 h-10 text-blue-600 opacity-50" />
+              </div>
+            </div>
+            <div className="card bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-green-900">{analytics.dailyStats?.readingSessions || 0}</div>
+                  <div className="text-sm font-medium text-green-700 mt-1">Reading Sessions Today</div>
+                </div>
+                <BookMarked className="w-10 h-10 text-green-600 opacity-50" />
+              </div>
+            </div>
+            <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-purple-900">
+                    {analytics.totalStats?.totalBooks > 0 
+                      ? ((analytics.totalStats?.totalReadingSessions / analytics.totalStats?.totalBooks) || 0).toFixed(1)
+                      : 0}
+                  </div>
+                  <div className="text-sm font-medium text-purple-700 mt-1">Avg Sessions per Book</div>
+                </div>
+                <Zap className="w-10 h-10 text-purple-600 opacity-50" />
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 

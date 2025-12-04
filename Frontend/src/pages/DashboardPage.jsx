@@ -29,7 +29,7 @@ export default function DashboardPage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardTab />
+        return <DashboardTab onNavigateToTab={setActiveTab} />
       case 'search':
         return <SearchTab />
       case 'categories':

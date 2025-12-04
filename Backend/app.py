@@ -393,8 +393,40 @@ def init_db():
                   requested_level TEXT,
                   current_level TEXT,
                   status TEXT DEFAULT 'pending',
+                  rejection_message TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   approved_at TIMESTAMP)''')
+    
+    # Add current_level column if it doesn't exist (migration)
+    try:
+        c.execute('ALTER TABLE subscription_requests ADD COLUMN current_level TEXT')
+    except sqlite3.OperationalError:
+        pass
+    
+    # Add rejection_message column if it doesn't exist (migration)
+    try:
+        c.execute('ALTER TABLE subscription_requests ADD COLUMN rejection_message TEXT')
+    except sqlite3.OperationalError:
+        pass
+    
+    # Book reviews table
+    c.execute('''CREATE TABLE IF NOT EXISTS book_reviews
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER,
+                  book_id INTEGER,
+                  rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+                  comment TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(user_id, book_id))''')
+    
+    # Book likes table
+    c.execute('''CREATE TABLE IF NOT EXISTS book_likes
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER,
+                  book_id INTEGER,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(user_id, book_id))''')
     
     # Categories table
     c.execute('''CREATE TABLE IF NOT EXISTS categories
@@ -455,6 +487,13 @@ def init_db():
     try:
         c.execute('CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_feedback_book ON feedback(book_id)')
+        
+        # Book reviews and likes indexes
+        c.execute('CREATE INDEX IF NOT EXISTS idx_reviews_book ON book_reviews(book_id)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_reviews_user ON book_reviews(user_id)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_reviews_book_rating ON book_reviews(book_id, rating)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_likes_book ON book_likes(book_id)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_likes_user ON book_likes(user_id)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_feedback_helpful ON feedback(is_helpful)')
     except sqlite3.OperationalError as e:
         print(f"Note: Some feedback indexes may already exist: {e}")
@@ -1872,8 +1911,19 @@ def books():
                 base_query += " AND academic_level = ?"
                 params.append(level)
             
-            # Use index on created_at DESC
-            base_query += " ORDER BY created_at DESC LIMIT 1000"
+            # Get pagination parameters
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 12))
+            offset = (page - 1) * per_page
+            
+            # Get total count for pagination
+            count_query = base_query.replace("SELECT *", "SELECT COUNT(*)")
+            c.execute(count_query, params)
+            total_count = c.fetchone()[0]
+            
+            # Use index on created_at DESC with pagination
+            base_query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            params.extend([per_page, offset])
             
             c.execute(base_query, params)
             books = []
@@ -1894,8 +1944,12 @@ def books():
             
             conn.close()
             
-            # Cache the results
-            set_cached(cache_key, books)
+            # Calculate pagination metadata
+            total_pages = (total_count + per_page - 1) // per_page
+            
+            # Cache the results (only cache first page for performance)
+            if page == 1:
+                set_cached(cache_key, books)
             
             # Generate embeddings (cached) - wrap in try-except to prevent errors
             try:
@@ -1904,7 +1958,15 @@ def books():
                 print(f"Warning: Failed to generate embeddings: {e}")
                 # Continue without embeddings
             
-            return jsonify(books)
+            return jsonify({
+                'books': books,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'total_pages': total_pages
+                }
+            })
     except Exception as e:
         import traceback
         print(f"Error in books endpoint: {e}")
@@ -2703,9 +2765,19 @@ def get_similar_users():
 @app.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_users():
+    # Get pagination parameters
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 12))
+    offset = (page - 1) * per_page
     conn = get_db()
     c = conn.cursor()
     
+    # Get total count
+    c.execute('''SELECT COUNT(DISTINCT u.id) as total
+                 FROM users u''')
+    total_count = c.fetchone()[0]
+    
+    # Get paginated users
     c.execute('''SELECT u.id, u.email, u.first_name, u.last_name, u.avatar, u.role, 
                  u.subscription_level, u.created_at,
                  COUNT(DISTINCT sh.id) as search_count,
@@ -2715,7 +2787,9 @@ def admin_users():
                  LEFT JOIN search_history sh ON u.id = sh.user_id
                  LEFT JOIN reading_history rh ON u.id = rh.user_id
                  LEFT JOIN subscription_requests sr ON u.id = sr.user_id AND sr.status = 'pending'
-                 GROUP BY u.id''')
+                 GROUP BY u.id
+                 ORDER BY u.created_at DESC
+                 LIMIT ? OFFSET ?''', (per_page, offset))
     
     users = []
     for row in c.fetchall():
@@ -2733,8 +2807,18 @@ def admin_users():
             'pendingRequests': row['pending_requests'] or 0
         })
     
+    total_pages = (total_count + per_page - 1) // per_page
+    
     conn.close()
-    return jsonify(users)
+    return jsonify({
+        'users': users,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total_count,
+            'total_pages': total_pages
+        }
+    })
 
 @app.route('/api/setup/promote-to-admin', methods=['POST'])
 def promote_to_admin():
@@ -3184,8 +3268,9 @@ def admin_subscription_requests():
             'userName': row['user_name'] or row['user_email'],
             'userEmail': row['user_email'],
             'requestedLevel': row['requested_level'],
-            'currentLevel': row['current_level'],
+            'currentLevel': row_get(row, 'current_level') or 'free',
             'status': row['status'],
+            'rejectionMessage': row_get(row, 'rejection_message'),
             'createdAt': row['created_at']
         })
     
@@ -3228,6 +3313,12 @@ def approve_subscription_request(request_id):
 @require_admin
 def reject_subscription_request(request_id):
     """Reject a subscription request"""
+    data = request.json or {}
+    rejection_message = data.get('rejection_message', '').strip()
+    
+    if not rejection_message:
+        return jsonify({'error': 'Rejection message is required'}), 400
+    
     conn = get_db()
     c = conn.cursor()
     
@@ -3239,10 +3330,10 @@ def reject_subscription_request(request_id):
         conn.close()
         return jsonify({'error': 'Request not found or already processed'}), 404
     
-    # Update request status
+    # Update request status with rejection message
     c.execute('''UPDATE subscription_requests 
-                 SET status = 'rejected', approved_at = CURRENT_TIMESTAMP
-                 WHERE id = ?''', (request_id,))
+                 SET status = 'rejected', approved_at = CURRENT_TIMESTAMP, rejection_message = ?
+                 WHERE id = ?''', (rejection_message, request_id))
     
     conn.commit()
     conn.close()
@@ -3271,7 +3362,7 @@ def user_subscription():
     for row in c.fetchall():
         request_history.append({
             'requestedLevel': row['requested_level'],
-            'currentLevel': row['current_level'],
+            'currentLevel': row_get(row, 'current_level') or 'free',
             'status': row['status'],
             'createdAt': row['created_at'],
             'approvedAt': row_get(row, 'approved_at')
@@ -3311,6 +3402,147 @@ def request_subscription_upgrade():
     conn.close()
     
     return jsonify({'success': True, 'message': 'Subscription upgrade requested'})
+
+# ============================================
+# BOOK REVIEWS AND LIKES
+# ============================================
+
+@app.route('/api/books/<int:book_id>/reviews', methods=['GET'])
+def get_book_reviews(book_id):
+    """Get all reviews for a book"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    c.execute('''SELECT r.*, u.first_name || ' ' || u.last_name as user_name, u.email as user_email
+                 FROM book_reviews r
+                 JOIN users u ON r.user_id = u.id
+                 WHERE r.book_id = ?
+                 ORDER BY r.created_at DESC''', (book_id,))
+    
+    reviews = []
+    for row in c.fetchall():
+        reviews.append({
+            'id': row['id'],
+            'userId': row['user_id'],
+            'userName': row['user_name'] or row['user_email'] or 'Anonymous',
+            'userEmail': row['user_email'],
+            'rating': row['rating'],
+            'comment': row['comment'] or '',
+            'createdAt': row['created_at'],
+            'updatedAt': row_get(row, 'updated_at')
+        })
+    
+    # Get average rating and total count
+    c.execute('''SELECT AVG(rating) as avg_rating, COUNT(*) as total_reviews
+                 FROM book_reviews WHERE book_id = ?''', (book_id,))
+    stats = c.fetchone()
+    
+    conn.close()
+    return jsonify({
+        'reviews': reviews,
+        'averageRating': round(stats['avg_rating'] or 0, 1) if stats else 0,
+        'totalReviews': stats['total_reviews'] or 0 if stats else 0
+    })
+
+@app.route('/api/books/<int:book_id>/reviews', methods=['POST'])
+@require_auth
+def create_book_review(book_id):
+    """Create or update a review for a book"""
+    user_id = request.current_user['user_id']
+    data = request.json
+    rating = data.get('rating')
+    comment = data.get('comment', '').strip()
+    
+    if not rating or rating < 1 or rating > 5:
+        return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Check if review already exists
+    c.execute('SELECT id FROM book_reviews WHERE user_id=? AND book_id=?', (user_id, book_id))
+    existing = c.fetchone()
+    
+    if existing:
+        # Update existing review
+        c.execute('''UPDATE book_reviews 
+                     SET rating=?, comment=?, updated_at=CURRENT_TIMESTAMP
+                     WHERE id=?''', (rating, comment, existing['id']))
+    else:
+        # Create new review
+        c.execute('''INSERT INTO book_reviews (user_id, book_id, rating, comment)
+                     VALUES (?, ?, ?, ?)''', (user_id, book_id, rating, comment))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Review saved successfully'})
+
+@app.route('/api/books/<int:book_id>/likes', methods=['GET'])
+def get_book_likes(book_id):
+    """Get like count and check if current user liked the book"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Get total likes
+    c.execute('SELECT COUNT(*) FROM book_likes WHERE book_id=?', (book_id,))
+    total_likes = c.fetchone()[0]
+    
+    # Check if current user liked it
+    user_liked = False
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        try:
+            token = auth_header.split(' ')[1]
+            payload = verify_token(token)
+            if payload:
+                c.execute('SELECT id FROM book_likes WHERE user_id=? AND book_id=?', 
+                         (payload['user_id'], book_id))
+                user_liked = c.fetchone() is not None
+        except:
+            pass
+    
+    conn.close()
+    return jsonify({
+        'totalLikes': total_likes,
+        'userLiked': user_liked
+    })
+
+@app.route('/api/books/<int:book_id>/likes', methods=['POST', 'DELETE'])
+@require_auth
+def toggle_book_like(book_id):
+    """Like or unlike a book"""
+    user_id = request.current_user['user_id']
+    conn = get_db()
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        # Like the book
+        try:
+            c.execute('''INSERT INTO book_likes (user_id, book_id)
+                         VALUES (?, ?)''', (user_id, book_id))
+            conn.commit()
+            action = 'liked'
+        except sqlite3.IntegrityError:
+            # Already liked
+            conn.close()
+            return jsonify({'success': True, 'message': 'Already liked', 'action': 'liked'})
+    else:
+        # Unlike the book
+        c.execute('DELETE FROM book_likes WHERE user_id=? AND book_id=?', (user_id, book_id))
+        conn.commit()
+        action = 'unliked'
+    
+    # Get updated count
+    c.execute('SELECT COUNT(*) FROM book_likes WHERE book_id=?', (book_id,))
+    total_likes = c.fetchone()[0]
+    
+    conn.close()
+    return jsonify({
+        'success': True,
+        'action': action,
+        'totalLikes': total_likes
+    })
 
 # ============================================
 # CATEGORIES

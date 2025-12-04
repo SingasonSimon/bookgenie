@@ -85,6 +85,8 @@ export class BookGenieAPI {
     const params = new URLSearchParams()
     if (filters.genre) params.append('genre', filters.genre)
     if (filters.academic_level) params.append('academic_level', filters.academic_level)
+    if (filters.page) params.append('page', filters.page)
+    if (filters.per_page) params.append('per_page', filters.per_page)
 
     try {
       const data = await this.request(`/books?${params}`, {
@@ -92,12 +94,18 @@ export class BookGenieAPI {
           'Authorization': `Bearer ${token}`,
         },
       })
-      // Ensure we return an array
-      return Array.isArray(data) ? data : []
+      // Handle both old format (array) and new format (object with books and pagination)
+      if (Array.isArray(data)) {
+        return { books: data, pagination: null }
+      }
+      return {
+        books: data.books || [],
+        pagination: data.pagination || null
+      }
     } catch (error) {
       console.error('Failed to fetch books:', error)
       // Return empty array on error instead of throwing
-      return []
+      return { books: [], pagination: null }
     }
   }
 
@@ -138,12 +146,25 @@ export class BookGenieAPI {
   }
 
   // Admin - Users
-  async getUsers(token) {
-    return this.request('/admin/users', {
+  async getUsers(token, filters = {}) {
+    const params = new URLSearchParams()
+    if (filters.page) params.append('page', filters.page)
+    if (filters.per_page) params.append('per_page', filters.per_page)
+
+    const data = await this.request(`/admin/users?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     })
+    
+    // Handle both old format (array) and new format (object with users and pagination)
+    if (Array.isArray(data)) {
+      return { users: data, pagination: null }
+    }
+    return {
+      users: data.users || [],
+      pagination: data.pagination || null
+    }
   }
 
   async getUserDetails(userId, token) {
@@ -274,12 +295,13 @@ export class BookGenieAPI {
     })
   }
 
-  async rejectSubscriptionRequest(requestId, token) {
+  async rejectSubscriptionRequest(requestId, rejectionMessage, token) {
     return this.request(`/admin/subscription-requests/${requestId}/reject`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+      body: JSON.stringify({ rejection_message: rejectionMessage }),
     })
   }
 
@@ -306,6 +328,56 @@ export class BookGenieAPI {
 
   async deleteCategory(categoryId, token) {
     return this.request(`/admin/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  // Book Reviews
+  async getBookReviews(bookId, token = null) {
+    const headers = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    return this.request(`/books/${bookId}/reviews`, {
+      headers,
+    })
+  }
+
+  async createBookReview(bookId, rating, comment, token) {
+    return this.request(`/books/${bookId}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ rating, comment }),
+    })
+  }
+
+  // Book Likes
+  async getBookLikes(bookId, token = null) {
+    const headers = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    return this.request(`/books/${bookId}/likes`, {
+      headers,
+    })
+  }
+
+  async likeBook(bookId, token) {
+    return this.request(`/books/${bookId}/likes`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async unlikeBook(bookId, token) {
+    return this.request(`/books/${bookId}/likes`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
