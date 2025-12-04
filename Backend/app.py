@@ -2428,8 +2428,23 @@ def search():
 @app.route('/api/recommendations/hybrid', methods=['GET'])
 @require_auth
 def get_hybrid_recommendations():
-    """Get hybrid recommendations combining content-based and collaborative filtering"""
+    """Get hybrid recommendations combining content-based and collaborative filtering (Basic/Premium only)"""
     user_id = request.current_user['user_id']
+    
+    # Check user subscription level - enhanced recommendations are for Basic/Premium only
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT subscription_level FROM users WHERE id=?', (user_id,))
+    user_row = c.fetchone()
+    user_subscription = user_row['subscription_level'] or 'free' if user_row else 'free'
+    conn.close()
+    
+    if user_subscription == 'free':
+        return jsonify({
+            'error': 'Enhanced recommendations require Basic or Premium subscription',
+            'message': 'Upgrade to Basic or Premium to access enhanced recommendations'
+        }), 403
+    
     top_k = request.args.get('top_k', 10, type=int)
     content_weight = request.args.get('content_weight', 0.5, type=float)
     collaborative_weight = request.args.get('collaborative_weight', 0.5, type=float)
@@ -2575,15 +2590,29 @@ def student_dashboard():
             'subscription_level': row_get(row, 'subscription_level', 'free')
         })
     
-    # Get recommended books - try hybrid first, fallback to content-based
+    # Get recommended books - enhanced recommendations for Basic/Premium, basic for Free
     recommended_books = []
-    try:
-        # Try hybrid recommendations
-        hybrid_recs = hybrid_engine.get_hybrid_recommendations(user_id, conn, top_k=6)
-        if hybrid_recs:
-            recommended_books = [rec['book'] for rec in hybrid_recs[:6]]
-    except:
-        # Fallback to content-based recommendations
+    if subscription_level in ['basic', 'premium']:
+        # Enhanced recommendations (hybrid) for Basic/Premium users
+        try:
+            hybrid_recs = hybrid_engine.get_hybrid_recommendations(user_id, conn, top_k=6)
+            if hybrid_recs:
+                recommended_books = [rec['book'] for rec in hybrid_recs[:6]]
+        except:
+            # Fallback to content-based recommendations
+            c.execute('''SELECT DISTINCT book_id FROM reading_history 
+                         WHERE user_id=? ORDER BY created_at DESC LIMIT 1''', (user_id,))
+            recent_book = c.fetchone()
+            
+            if recent_book:
+                # Get content-based recommendations for recently read book
+                recommendations = get_recommendations(recent_book['book_id'])
+                if isinstance(recommendations, tuple):
+                    recommended_books = recommendations[0].json if hasattr(recommendations[0], 'json') else []
+                else:
+                    recommended_books = recommendations.json if hasattr(recommendations, 'json') else []
+    else:
+        # Basic recommendations for Free users (content-based only)
         c.execute('''SELECT DISTINCT book_id FROM reading_history 
                      WHERE user_id=? ORDER BY created_at DESC LIMIT 1''', (user_id,))
         recent_book = c.fetchone()
@@ -2598,6 +2627,47 @@ def student_dashboard():
     
     conn.close()
     
+    # Premium analytics (only for premium users)
+    premium_analytics = None
+    if subscription_level == 'premium':
+        # Time-series data for charts (last 30 days)
+        c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                     FROM reading_history
+                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                     GROUP BY DATE(created_at)
+                     ORDER BY date''', (user_id,))
+        reading_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+        
+        c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                     FROM search_history
+                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                     GROUP BY DATE(created_at)
+                     ORDER BY date''', (user_id,))
+        search_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+        
+        # Reading patterns by day of week
+        c.execute('''SELECT strftime('%w', created_at) as day_of_week, COUNT(*) as count
+                     FROM reading_history
+                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                     GROUP BY strftime('%w', created_at)
+                     ORDER BY day_of_week''', (user_id,))
+        day_patterns = [{'day': row['day_of_week'], 'count': row['count']} for row in c.fetchall()]
+        
+        # Most read genres with percentages
+        genre_total = sum(g['count'] for g in favorite_genres)
+        genre_breakdown = [{
+            'genre': g['genre'],
+            'count': g['count'],
+            'percentage': round((g['count'] / genre_total * 100), 1) if genre_total > 0 else 0
+        } for g in favorite_genres]
+        
+        premium_analytics = {
+            'readingTimeline': reading_timeline,
+            'searchTimeline': search_timeline,
+            'dayPatterns': day_patterns,
+            'genreBreakdown': genre_breakdown
+        }
+    
     dashboard_data = {
         'stats': {
             'total_searches': total_searches,
@@ -2611,7 +2681,8 @@ def student_dashboard():
         },
         'favorite_genres': favorite_genres,
         'recently_read': recently_read,
-        'recommended_books': recommended_books[:6] if recommended_books else []
+        'recommended_books': recommended_books[:6] if recommended_books else [],
+        'premium_analytics': premium_analytics
     }
     
     # Cache for shorter time (1 minute) since user activity changes frequently
@@ -3289,6 +3360,73 @@ def admin_analytics():
             'readingCount': row['reading_count'] or 0
         })
     
+    # Time-series data for charts (last 30 days)
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                 FROM users
+                 WHERE created_at >= datetime('now', '-30 days')
+                 GROUP BY DATE(created_at)
+                 ORDER BY date''')
+    user_growth = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+    
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                 FROM search_history
+                 WHERE created_at >= datetime('now', '-30 days')
+                 GROUP BY DATE(created_at)
+                 ORDER BY date''')
+    search_trends = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+    
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                 FROM reading_history
+                 WHERE created_at >= datetime('now', '-30 days')
+                 GROUP BY DATE(created_at)
+                 ORDER BY date''')
+    reading_trends = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+    
+    # Genre distribution
+    c.execute('''SELECT genre, COUNT(*) as count
+                 FROM books
+                 WHERE genre IS NOT NULL AND genre != ''
+                 GROUP BY genre
+                 ORDER BY count DESC
+                 LIMIT 10''')
+    genre_distribution = [{'genre': row['genre'], 'count': row['count']} for row in c.fetchall()]
+    
+    # Academic level distribution
+    c.execute('''SELECT academic_level, COUNT(*) as count
+                 FROM books
+                 WHERE academic_level IS NOT NULL AND academic_level != ''
+                 GROUP BY academic_level
+                 ORDER BY count DESC''')
+    academic_distribution = [{'level': row['academic_level'], 'count': row['count']} for row in c.fetchall()]
+    
+    # Subscription level distribution over time (last 7 days)
+    c.execute('''SELECT DATE(created_at) as date, subscription_level, COUNT(*) as count
+                 FROM users
+                 WHERE created_at >= datetime('now', '-7 days')
+                 GROUP BY DATE(created_at), subscription_level
+                 ORDER BY date, subscription_level''')
+    subscription_trends = {}
+    for row in c.fetchall():
+        date = row['date']
+        level = row['subscription_level'] or 'free'
+        if date not in subscription_trends:
+            subscription_trends[date] = {}
+        subscription_trends[date][level] = row['count']
+    
+    # Most downloaded books
+    c.execute('''SELECT b.id, b.title, b.author, COUNT(rh.id) as download_count
+                 FROM books b
+                 LEFT JOIN reading_history rh ON b.id = rh.book_id
+                 GROUP BY b.id
+                 ORDER BY download_count DESC
+                 LIMIT 10''')
+    top_books = [{
+        'id': row['id'],
+        'title': row['title'],
+        'author': row['author'],
+        'downloadCount': row['download_count'] or 0
+    } for row in c.fetchall()]
+    
     conn.close()
     
     return jsonify({
@@ -3306,7 +3444,18 @@ def admin_analytics():
         },
         'subscriptionStats': subscription_stats,
         'popularSearches': popular_searches,
-        'activeUsers': active_users
+        'activeUsers': active_users,
+        'timeSeries': {
+            'userGrowth': user_growth,
+            'searchTrends': search_trends,
+            'readingTrends': reading_trends,
+            'subscriptionTrends': subscription_trends
+        },
+        'distributions': {
+            'genres': genre_distribution,
+            'academicLevels': academic_distribution
+        },
+        'topBooks': top_books
     })
 
 @app.route('/api/admin/subscription-requests', methods=['GET'])

@@ -7,6 +7,9 @@ import BookDetailsModal from '../BookDetailsModal'
 import PageHeader from '../PageHeader'
 import { StatCardSkeleton, GridSkeleton } from '../LoadingSkeleton'
 import { BookGenieAPI } from '../../services/api'
+import LineChart from '../charts/LineChart'
+import BarChart from '../charts/BarChart'
+import PieChart from '../charts/PieChart'
 
 export default function DashboardTab({ onNavigateToTab }) {
   const { user } = useAuth()
@@ -15,10 +18,12 @@ export default function DashboardTab({ onNavigateToTab }) {
   const [recommendedBooks, setRecommendedBooks] = useState([])
   const [favoriteGenres, setFavoriteGenres] = useState([])
   const [recentlyRead, setRecentlyRead] = useState([])
+  const [premiumAnalytics, setPremiumAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedBook, setSelectedBook] = useState(null)
   const api = new BookGenieAPI()
   const isAdmin = user?.role === 'admin'
+  const isPremium = user?.subscriptionLevel === 'premium'
 
   useEffect(() => {
     loadDashboard()
@@ -46,6 +51,7 @@ export default function DashboardTab({ onNavigateToTab }) {
         setRecommendedBooks(data.recommended_books || [])
         setFavoriteGenres(data.favorite_genres || [])
         setRecentlyRead(data.recently_read || [])
+        setPremiumAnalytics(data.premium_analytics || null)
       }
     } catch (error) {
       console.error('Dashboard error:', error)
@@ -165,8 +171,29 @@ export default function DashboardTab({ onNavigateToTab }) {
       <PageHeader
         icon={BookOpen}
         title={isAdmin ? "Admin Dashboard" : "Your Reading Dashboard"}
-        description={isAdmin ? "System overview and key metrics" : `Welcome back, ${user?.firstName || user?.email?.split('@')[0] || 'User'}!`}
+        description={
+          isAdmin 
+            ? "System overview and key metrics" 
+            : `Welcome back, ${user?.firstName || user?.email?.split('@')[0] || 'User'}!${isPremium ? ' 🎉 Premium Member' : ''}`
+        }
       />
+      
+      {/* Priority Support Badge for Premium Users */}
+      {!isAdmin && isPremium && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <Star className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-900">Priority Support Active</p>
+              <p className="text-sm text-amber-700">As a Premium member, you have access to priority support and advanced analytics.</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats Grid */}
       {loading ? (
@@ -404,6 +431,95 @@ export default function DashboardTab({ onNavigateToTab }) {
               </div>
             </div>
           </motion.div>
+
+          {/* Charts Section */}
+          {analytics.timeSeries && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* User Growth Chart */}
+              {analytics.timeSeries.userGrowth && analytics.timeSeries.userGrowth.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <TrendingUp className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">User Growth (30 Days)</h2>
+                  </div>
+                  <LineChart 
+                    data={analytics.timeSeries.userGrowth} 
+                    dataKey="count" 
+                    name="New Users"
+                    color="#3b82f6"
+                  />
+                </motion.div>
+              )}
+
+              {/* Search Trends Chart */}
+              {analytics.timeSeries.searchTrends && analytics.timeSeries.searchTrends.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Search className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">Search Trends (30 Days)</h2>
+                  </div>
+                  <LineChart 
+                    data={analytics.timeSeries.searchTrends} 
+                    dataKey="count" 
+                    name="Searches"
+                    color="#10b981"
+                  />
+                </motion.div>
+              )}
+
+              {/* Reading Trends Chart */}
+              {analytics.timeSeries.readingTrends && analytics.timeSeries.readingTrends.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <BookMarked className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">Reading Trends (30 Days)</h2>
+                  </div>
+                  <LineChart 
+                    data={analytics.timeSeries.readingTrends} 
+                    dataKey="count" 
+                    name="Reading Sessions"
+                    color="#f59e0b"
+                  />
+                </motion.div>
+              )}
+
+              {/* Genre Distribution Chart */}
+              {analytics.distributions?.genres && analytics.distributions.genres.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <BookOpen className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">Genre Distribution</h2>
+                  </div>
+                  <BarChart 
+                    data={analytics.distributions.genres} 
+                    dataKey="genre" 
+                    name="count"
+                    color="#8b5cf6"
+                  />
+                </motion.div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -450,6 +566,53 @@ export default function DashboardTab({ onNavigateToTab }) {
             </div>
           </motion.div>
 
+          {/* Premium Analytics Charts */}
+          {isPremium && premiumAnalytics && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Reading Timeline */}
+              {premiumAnalytics.readingTimeline && premiumAnalytics.readingTimeline.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <BookMarked className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">Reading Activity (30 Days)</h2>
+                  </div>
+                  <LineChart 
+                    data={premiumAnalytics.readingTimeline} 
+                    dataKey="count" 
+                    name="Reading Sessions"
+                    color="#10b981"
+                  />
+                </motion.div>
+              )}
+
+              {/* Search Timeline */}
+              {premiumAnalytics.searchTimeline && premiumAnalytics.searchTimeline.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="card"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Search className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-xl font-display font-bold text-gray-900">Search Activity (30 Days)</h2>
+                  </div>
+                  <LineChart 
+                    data={premiumAnalytics.searchTimeline} 
+                    dataKey="count" 
+                    name="Searches"
+                    color="#3b82f6"
+                  />
+                </motion.div>
+              )}
+            </div>
+          )}
+
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Favorite Genres */}
@@ -458,13 +621,13 @@ export default function DashboardTab({ onNavigateToTab }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="card"
+                className="card overflow-hidden"
               >
                 <div className="flex items-center gap-3 mb-6">
                   <Star className="w-5 h-5 text-primary-600" />
                   <h2 className="text-xl font-display font-bold text-gray-900">Favorite Genres</h2>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                   {favoriteGenres.map((genre, idx) => {
                     const total = favoriteGenres.reduce((sum, g) => sum + g.count, 0)
                     const percentage = total > 0 ? ((genre.count / total) * 100).toFixed(0) : 0
@@ -477,11 +640,11 @@ export default function DashboardTab({ onNavigateToTab }) {
                         className="space-y-2"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="w-4 h-4 text-primary-600" />
-                            <span className="font-medium text-gray-900">{genre.genre}</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <BookOpen className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                            <span className="font-medium text-gray-900 truncate">{genre.genre}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             <span className="text-sm font-semibold text-gray-900">{genre.count}</span>
                             <span className="text-xs text-gray-500">({percentage}%)</span>
                           </div>
@@ -507,13 +670,13 @@ export default function DashboardTab({ onNavigateToTab }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="card"
+                className="card overflow-hidden"
               >
                 <div className="flex items-center gap-3 mb-6">
                   <Clock className="w-5 h-5 text-primary-600" />
                   <h2 className="text-xl font-display font-bold text-gray-900">Recently Read</h2>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                   {recentlyRead.map((book, idx) => (
                     <motion.div
                       key={book.id}
@@ -530,7 +693,7 @@ export default function DashboardTab({ onNavigateToTab }) {
                         <div className="font-medium text-gray-900 truncate">{book.title}</div>
                         <div className="text-sm text-gray-600 truncate">{book.author}</div>
                         {book.genre && (
-                          <div className="text-xs text-primary-600 mt-1">{book.genre}</div>
+                          <div className="text-xs text-primary-600 mt-1 truncate">{book.genre}</div>
                         )}
                       </div>
                     </motion.div>
@@ -546,6 +709,7 @@ export default function DashboardTab({ onNavigateToTab }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
+              className="w-full"
             >
               <div className="flex items-center gap-3 mb-6">
                 <Sparkles className="w-5 h-5 text-primary-600" />
@@ -553,7 +717,7 @@ export default function DashboardTab({ onNavigateToTab }) {
                   Recommended for You
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                 {recommendedBooks.map((item, idx) => {
                   const book = item.book || item
                   return (
@@ -562,6 +726,7 @@ export default function DashboardTab({ onNavigateToTab }) {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.6 + idx * 0.1 }}
+                      className="w-full"
                     >
                       <BookCard
                         book={book}

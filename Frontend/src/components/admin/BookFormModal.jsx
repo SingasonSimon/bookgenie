@@ -237,17 +237,28 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
                   <FileText className="w-4 h-4" />
                   Book File (PDF, EPUB, etc.)
                 </label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".pdf,.epub,.txt,.doc,.docx"
-                    onChange={(e) => setBookFile(e.target.files[0])}
-                    className="input-field file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                  />
-                  {bookFile && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600">
-                      {bookFile.name}
-                    </span>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf,.epub,.txt,.doc,.docx"
+                      onChange={(e) => setBookFile(e.target.files[0])}
+                      className="input-field file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                    />
+                    {bookFile && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600">
+                        {bookFile.name}
+                      </span>
+                    )}
+                  </div>
+                  {book && book.file_url && !bookFile && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-700 font-medium mb-1">Current File:</p>
+                      <p className="text-sm text-blue-900 truncate" title={book.file_url}>
+                        {book.file_url.split('/').pop() || book.file_url}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">Select a new file to replace the current one</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -257,17 +268,42 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
                   <ImageIcon className="w-4 h-4" />
                   Cover Image
                 </label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setCoverFile(e.target.files[0])}
-                    className="input-field file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                  />
-                  {coverFile && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600">
-                      {coverFile.name}
-                    </span>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setCoverFile(e.target.files[0])}
+                      className="input-field file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                    />
+                    {coverFile && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600">
+                        {coverFile.name}
+                      </span>
+                    )}
+                  </div>
+                  {book && book.cover_image && book.cover_image !== 'book' && !coverFile && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-700 font-medium mb-1">Current Cover:</p>
+                      <div className="flex items-center gap-2">
+                        {book.cover_image && (
+                          <img 
+                            src={book.cover_image.startsWith('http') 
+                              ? book.cover_image 
+                              : `http://localhost:5000/api/files/covers/${book.cover_image}`}
+                            alt="Current cover"
+                            className="w-12 h-16 object-cover rounded border border-blue-300"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                            }}
+                          />
+                        )}
+                        <p className="text-sm text-blue-900 truncate flex-1" title={book.cover_image}>
+                          {book.cover_image.split('/').pop() || book.cover_image}
+                        </p>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">Select a new image to replace the current one</p>
+                    </div>
                   )}
                 </div>
               </div>
