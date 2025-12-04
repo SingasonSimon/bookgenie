@@ -132,7 +132,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen blob-bg p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-8">
         <Navbar
           user={user}
           onLoginClick={() => setShowLoginModal(true)}
@@ -143,44 +143,63 @@ export default function HomePage() {
           onAdminClick={() => navigate('/dashboard')}
         />
 
-        <StatsCard totalBooks={books.length} />
+        {/* Hero Section - Search First */}
+        <section className="space-y-6">
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-gray-900">
+              Discover Your Next
+              <span className="text-gradient"> Academic Book</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-600">
+              AI-powered search to find exactly what you need
+            </p>
+          </div>
 
-        <SearchSection
-          onSearch={handleSearch}
-          onQuickSearch={handleQuickSearch}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-        />
-
-        {isLoading && <LoadingIndicator />}
-
-        {!isLoading && (
-          <BooksGrid
-            books={displayBooks}
-            searchResults={searchResults}
-            user={user}
-            loading={isLoading}
-            onViewBook={(bookId) => {
-              const book = displayBooks.find(b => b.id === bookId)
-              if (book) {
-                alert(`Book: ${book.title}\nAuthor: ${book.author}\n\n${book.abstract || 'No abstract available'}`)
-              }
-            }}
-            onDownloadBook={async (bookId) => {
-              if (!user) {
-                showNotification('Please login to download books', 'error')
-                return
-              }
-              const book = displayBooks.find(b => b.id === bookId)
-              if (book && book.file_url) {
-                window.open(`http://localhost:5000${book.file_url}`, '_blank')
-              } else {
-                showNotification('Book file not available', 'error')
-              }
-            }}
+          <SearchSection
+            onSearch={handleSearch}
+            onQuickSearch={handleQuickSearch}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={clearFilters}
           />
-        )}
+        </section>
+
+        {/* Stats Section */}
+        <section>
+          <StatsCard totalBooks={books.length} />
+        </section>
+
+        {/* Books Section */}
+        <section>
+          {isLoading && <LoadingIndicator />}
+
+          {!isLoading && (
+            <BooksGrid
+              books={displayBooks}
+              searchResults={searchResults}
+              user={user}
+              loading={isLoading}
+              onViewBook={(bookId) => {
+                const book = displayBooks.find(b => b.id === bookId)
+                if (book) {
+                  alert(`Book: ${book.title}\nAuthor: ${book.author}\n\n${book.abstract || 'No abstract available'}`)
+                }
+              }}
+              onDownloadBook={async (bookId) => {
+                if (!user) {
+                  showNotification('Please login to download books', 'error')
+                  return
+                }
+                const book = displayBooks.find(b => b.id === bookId)
+                if (book && book.file_url) {
+                  window.open(`http://localhost:5000${book.file_url}`, '_blank')
+                } else {
+                  showNotification('Book file not available', 'error')
+                }
+              }}
+            />
+          )}
+        </section>
 
         {showLoginModal && (
           <LoginModal

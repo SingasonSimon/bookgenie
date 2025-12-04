@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Star, Crown, Zap, Check, ArrowUp } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import PageHeader from '../PageHeader'
 import Spinner from '../Spinner'
 
 export default function SubscriptionTab() {
@@ -55,23 +56,13 @@ export default function SubscriptionTab() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg">
-            <Star className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-gray-900">Subscription</h1>
-            <p className="text-gray-600">Manage your subscription plan</p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        icon={Star}
+        title="Subscription"
+        description="Manage your subscription plan"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         {plans.map((plan, idx) => {
           const Icon = plan.icon
           return (
@@ -83,12 +74,12 @@ export default function SubscriptionTab() {
               className={`card relative ${plan.current ? 'ring-2 ring-primary-500 shadow-lg' : ''}`}
             >
               {plan.current && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-primary-500 text-white text-xs font-semibold rounded-full">
+                <div className="absolute top-4 right-4 px-3 py-1 bg-primary-600 text-white text-xs font-semibold rounded-full">
                   Current
                 </div>
               )}
               <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                   plan.name === 'Free' ? 'bg-gray-100' :
                   plan.name === 'Basic' ? 'bg-blue-100' : 'bg-amber-100'
                 }`}>
@@ -97,7 +88,7 @@ export default function SubscriptionTab() {
                     plan.name === 'Basic' ? 'text-blue-600' : 'text-amber-600'
                   }`} />
                 </div>
-                <h3 className="text-2xl font-display font-bold text-gray-900">{plan.name}</h3>
+                <h3 className="text-xl font-display font-bold text-gray-900">{plan.name}</h3>
               </div>
               <ul className="space-y-2 mb-6">
                 {plan.features.map((feature, i) => (
@@ -118,8 +109,8 @@ export default function SubscriptionTab() {
         transition={{ delay: 0.3 }}
         className="card max-w-2xl"
       >
-        <h2 className="text-2xl font-display font-bold mb-6 flex items-center gap-2">
-          <ArrowUp className="w-6 h-6 text-primary-500" />
+        <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
+          <ArrowUp className="w-5 h-5 text-primary-600" />
           Upgrade Plan
         </h2>
         <div className="space-y-4">
@@ -139,7 +130,7 @@ export default function SubscriptionTab() {
             whileTap={{ scale: 0.98 }}
             onClick={handleRequest}
             disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2"
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
           >
             {loading ? (
               <>

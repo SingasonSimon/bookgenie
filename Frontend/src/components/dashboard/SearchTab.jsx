@@ -4,6 +4,7 @@ import { Search, Sparkles } from 'lucide-react'
 import { BookGenieAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import BooksGrid from '../BooksGrid'
+import PageHeader from '../PageHeader'
 import LoadingIndicator from '../LoadingIndicator'
 import Spinner from '../Spinner'
 
@@ -32,28 +33,18 @@ export default function SearchTab() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
-            <Search className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-gray-900">Search Books</h1>
-            <p className="text-gray-600">Find exactly what you're looking for</p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        icon={Search}
+        title="Search Books"
+        description="Find exactly what you're looking for"
+      />
 
       <motion.form
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         onSubmit={handleSearch}
-        className="mb-8"
+        className="mb-6"
       >
         <div className="flex gap-3">
           <div className="relative flex-1">
@@ -67,8 +58,8 @@ export default function SearchTab() {
             />
           </div>
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={loading}
             className="btn-primary flex items-center gap-2 whitespace-nowrap"

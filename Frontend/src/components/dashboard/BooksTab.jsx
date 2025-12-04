@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { BookText, Plus, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
+import PageHeader from '../PageHeader'
 import { GridSkeleton } from '../LoadingSkeleton'
 
 export default function BooksTab() {
@@ -35,30 +36,22 @@ export default function BooksTab() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center mb-8 flex-wrap gap-4"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
-            <BookText className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-gray-900">Manage Books</h1>
-            <p className="text-gray-600">Add, edit, and manage library content</p>
-          </div>
-        </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Add New Book
-        </motion.button>
-      </motion.div>
+      <PageHeader
+        icon={BookText}
+        title="Manage Books"
+        description="Add, edit, and manage library content"
+        action={
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Add New Book
+          </motion.button>
+        }
+      />
 
       {loading ? (
         <GridSkeleton count={6} />
@@ -80,7 +73,7 @@ export default function BooksTab() {
           </motion.button>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {books.map((book, idx) => (
             <motion.div
               key={book.id}
@@ -122,8 +115,8 @@ export default function BooksTab() {
               onClick={(e) => e.stopPropagation()}
             >
               <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAddModal(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
               >

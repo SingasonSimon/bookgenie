@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutDashboard, Search, BookOpen, Star, Users, BarChart3, BookText, Home, LogOut, User, Shield, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, Search, BookOpen, Star, Users, BarChart3, BookText, Home, LogOut, User, Shield, ChevronDown, Menu, X } from 'lucide-react'
 
 export default function DashboardLayout({ user, activeTab, onTabChange, onLogout, onHomeClick, children }) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,29 +29,34 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
       {/* Header */}
       <header className="sticky top-4 z-40 mb-6">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="glass-effect rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/50">
+          <div className="glass-effect rounded-xl p-4 sm:p-5">
             <div className="flex justify-between items-center h-18 sm:h-20">
             <div className="flex items-center gap-6 sm:gap-8">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onHomeClick}
-                className="flex items-center gap-4 cursor-pointer group"
-              >
-                <motion.div
-                  whileHover={{ rotate: 5 }}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center shadow-xl group-hover:shadow-primary-500/50 transition-shadow"
+              <div className="flex items-center gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onHomeClick}
+                  className="flex items-center gap-3 cursor-pointer group"
                 >
-                  <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-                </motion.div>
-                <div>
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-gradient leading-tight">
-                    BookGenie
-                  </span>
-                  <span className="text-gray-600 text-sm sm:text-base font-medium hidden sm:inline block">AI-Powered Academic Library</span>
-                </div>
-              </motion.button>
-              <div className="hidden md:flex gap-1">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
+                    <BookOpen className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-2xl sm:text-3xl font-display font-bold text-gradient leading-tight">
+                      BookGenie
+                    </span>
+                    <span className="text-gray-600 text-sm font-medium hidden sm:inline block mt-0.5">AI-Powered Academic Library</span>
+                  </div>
+                </motion.button>
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="hidden lg:flex gap-1">
                 {tabs.map(tab => {
                   const Icon = tab.icon
                   return (
@@ -59,9 +65,9 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => onTabChange(tab.id)}
-                      className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                      className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
+                          ? 'bg-primary-600 text-white'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
@@ -139,7 +145,7 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
       </header>
 
       {/* Mobile Tabs */}
-      <div className="md:hidden glass-effect rounded-2xl shadow-lg mb-6 px-4 py-3 overflow-x-auto sticky top-24 z-30 max-w-7xl mx-auto">
+      <div className="lg:hidden glass-effect rounded-xl mb-6 px-4 py-3 overflow-x-auto sticky top-20 z-30 max-w-7xl mx-auto">
         <div className="flex gap-2">
           {tabs.map(tab => {
             const Icon = tab.icon
@@ -148,9 +154,9 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                 key={tab.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onTabChange(tab.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md'
+                    ? 'bg-primary-600 text-white'
                     : 'text-gray-700 bg-gray-100'
                 }`}
               >
@@ -163,102 +169,78 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 sm:py-10 lg:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
-        {/* Sidebar - Left */}
-        <aside className="hidden lg:block lg:col-span-2">
-          <div className="glass-effect rounded-2xl shadow-lg p-6 lg:p-7 sticky top-32 h-fit">
-            <div className="space-y-3">
-              <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-5 text-gray-500">Quick Actions</h3>
-              <motion.button
-                whileHover={{ scale: 1.02, x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onTabChange('search')}
-                className="w-full text-left px-5 py-3.5 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-3 text-gray-700 hover:text-primary-600 font-medium"
+      <main className="max-w-7xl mx-auto py-6 sm:py-8 lg:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Sidebar - Collapsible */}
+          <>
+            {/* Mobile Overlay */}
+            {sidebarOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSidebarOpen(false)}
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              />
+            )}
+            
+            {/* Sidebar */}
+            <aside className={`lg:col-span-3 ${sidebarOpen ? 'fixed' : 'hidden'} lg:block lg:sticky top-24 lg:top-32 h-[calc(100vh-6rem)] lg:h-fit z-50 lg:z-auto`}>
+              <motion.div
+                initial={sidebarOpen ? { x: -300, opacity: 0 } : false}
+                animate={{ x: 0, opacity: 1 }}
+                className="glass-effect rounded-xl p-6 h-full lg:h-fit overflow-y-auto lg:overflow-visible"
               >
-                <Search className="w-5 h-5" />
-                <span>Search</span>
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02, x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onTabChange('categories')}
-                className="w-full text-left px-5 py-3.5 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-3 text-gray-700 hover:text-primary-600 font-medium"
-              >
-                <BookOpen className="w-5 h-5" />
-                <span>Categories</span>
-              </motion.button>
-              {user?.role === 'admin' && (
-                <>
-                  <motion.button
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onTabChange('books')}
-                    className="w-full text-left px-5 py-3.5 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-3 text-gray-700 hover:text-primary-600 font-medium"
+                <div className="flex items-center justify-between mb-6 lg:hidden">
+                  <h3 className="font-semibold text-gray-900">Menu</h3>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-1 rounded-lg hover:bg-gray-100"
                   >
-                    <BookText className="w-5 h-5" />
-                    <span>Manage Books</span>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onTabChange('analytics')}
-                    className="w-full text-left px-5 py-3.5 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-3 text-gray-700 hover:text-primary-600 font-medium"
-                  >
-                    <BarChart3 className="w-5 h-5" />
-                    <span>Analytics</span>
-                  </motion.button>
-                </>
-              )}
-            </div>
-          </div>
-        </aside>
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {tabs.map(tab => {
+                    const Icon = tab.icon
+                    return (
+                      <motion.button
+                        key={tab.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          onTabChange(tab.id)
+                          setSidebarOpen(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 font-medium ${
+                          activeTab === tab.id
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{tab.label}</span>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </aside>
+          </>
 
-        {/* Main Content Area */}
-        <div className="lg:col-span-8">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            {children}
-          </motion.div>
+          {/* Main Content Area */}
+          <div className="lg:col-span-9">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {children}
+            </motion.div>
+          </div>
         </div>
-
-        {/* Sidebar - Right */}
-        <aside className="hidden lg:block lg:col-span-2">
-          <div className="glass-effect rounded-2xl shadow-lg p-6 lg:p-7 sticky top-32 h-fit">
-            <div className="space-y-5">
-              <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-6 text-gray-500">Your Stats</h3>
-              <div className="space-y-4">
-                <div className="p-5 bg-gradient-to-br from-primary-50 to-purple-50 rounded-xl border border-primary-100">
-                  <div className="text-3xl font-bold text-primary-600 mb-2">0</div>
-                  <div className="text-sm text-gray-600 font-medium">Books Read</div>
-                </div>
-                <div className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">0</div>
-                  <div className="text-sm text-gray-600 font-medium">Searches</div>
-                </div>
-                <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
-                  <div className="text-3xl font-bold text-green-600 mb-2 capitalize">{user?.subscriptionLevel || 'Free'}</div>
-                  <div className="text-sm text-gray-600 font-medium">Subscription</div>
-                </div>
-              </div>
-              {user?.role !== 'admin' && (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => onTabChange('subscription')}
-                  className="w-full mt-4 btn-primary text-sm py-2.5"
-                >
-                  <Star className="w-4 h-4 inline mr-2" />
-                  Upgrade Plan
-                </motion.button>
-              )}
-            </div>
-          </div>
-        </aside>
       </main>
     </div>
   )

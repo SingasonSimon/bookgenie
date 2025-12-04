@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { BookOpen, Loader2 } from 'lucide-react'
+import PageHeader from '../PageHeader'
 import { GridSkeleton } from '../LoadingSkeleton'
 
 export default function CategoriesTab() {
@@ -25,21 +26,11 @@ export default function CategoriesTab() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
-            <BookOpen className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-gray-900">Categories</h1>
-            <p className="text-gray-600">Browse by subject area</p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        icon={BookOpen}
+        title="Categories"
+        description="Browse by subject area"
+      />
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -61,22 +52,22 @@ export default function CategoriesTab() {
           <p className="text-gray-600">No categories available</p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map((category, idx) => (
             <motion.div
               key={category.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              whileHover={{ y: -4 }}
-              className="card-hover"
+              whileHover={{ y: -2 }}
+              className="card"
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-md">
-                  <BookOpen className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-6 h-6 text-primary-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2 text-gray-900">{category.name}</h3>
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900">{category.name}</h3>
                   <p className="text-gray-600 text-sm leading-relaxed">
                     {category.description || 'No description available'}
                   </p>

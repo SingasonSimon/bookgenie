@@ -21,17 +21,14 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
             className="flex items-center gap-4 cursor-pointer group"
             onClick={() => navigate('/')}
           >
-            <motion.div
-              whileHover={{ rotate: 5 }}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center shadow-xl group-hover:shadow-primary-500/50 transition-shadow"
-            >
-              <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-            </motion.div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-gradient leading-tight">
+              <h1 className="text-2xl sm:text-3xl font-display font-bold text-gradient leading-tight">
                 BookGenie
               </h1>
-              <span className="text-gray-600 text-sm sm:text-base font-medium hidden sm:inline">AI-Powered Academic Library</span>
+              <span className="text-gray-600 text-sm font-medium hidden sm:inline block mt-0.5">AI-Powered Academic Library</span>
             </div>
           </motion.div>
           
@@ -54,7 +51,7 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
                   >
-                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-lg text-base sm:text-lg">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-base">
                       {user?.firstName?.[0] || user?.email?.[0] || 'U'}
                     </div>
                     <span className="font-semibold text-gray-700 text-base hidden sm:inline">
