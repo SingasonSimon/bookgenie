@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { BookOpen, Search, BookMarked, Star, Sparkles, Users, AlertCircle, UserPlus, TrendingUp, Clock, MessageSquare, BarChart3, Activity, Zap, Eye } from 'lucide-react'
+import { BookOpen, Search, BookMarked, Star, Sparkles, Users, AlertCircle, UserPlus, TrendingUp, Clock, MessageSquare, BarChart3, Activity, Zap, Eye, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
 import BookDetailsModal from '../BookDetailsModal'
@@ -29,26 +29,44 @@ export default function DashboardTab({ onNavigateToTab }) {
     loadDashboard()
   }, [])
 
+  // Refresh dashboard when window regains focus (user might have downloaded/viewed books in another tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDashboard()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
+
   const loadDashboard = async () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('bookgenie_token')
       
       if (isAdmin) {
-        // Load admin analytics
+        // Load admin analytics (add cache-busting timestamp)
         const analyticsData = await api.getAnalytics(token)
         console.log('Admin Analytics Data:', analyticsData) // Debug log
         setAnalytics(analyticsData)
       } else {
-        // Load student dashboard
-        const response = await fetch('http://localhost:5000/api/student/dashboard', {
+        // Load student dashboard (add cache-busting timestamp)
+        const response = await fetch(`http://localhost:5000/api/student/dashboard?t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
           }
         })
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load dashboard: ${response.status}`)
+        }
+        
         const data = await response.json()
         console.log('Student Dashboard Data:', data) // Debug log
+        console.log('Books Read:', data.stats?.books_read)
+        console.log('Reading Sessions:', data.stats?.total_reading)
+        console.log('Recently Read:', data.recently_read)
+        
         setStats(data.stats)
         setRecommendedBooks(data.recommended_books || [])
         setFavoriteGenres(data.favorite_genres || [])
@@ -177,6 +195,19 @@ export default function DashboardTab({ onNavigateToTab }) {
           isAdmin 
             ? "System overview and key metrics" 
             : `Welcome back, ${user?.firstName || user?.email?.split('@')[0] || 'User'}!${isPremium ? ' 🎉 Premium Member' : ''}`
+        }
+        action={
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => loadDashboard()}
+            disabled={loading}
+            className="btn-secondary flex items-center gap-2 text-sm"
+            title="Refresh dashboard"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </motion.button>
         }
       />
       
@@ -811,12 +842,30 @@ export default function DashboardTab({ onNavigateToTab }) {
         <BookDetailsModal
           book={selectedBook}
           user={user}
-          onClose={() => setSelectedBook(null)}
+          onClose={() => {
+            setSelectedBook(null)
+            // Refresh dashboard to show updated stats
+            loadDashboard()
+          }}
           onDownload={async () => {
             try {
               const token = localStorage.getItem('bookgenie_token')
               if (token && selectedBook && selectedBook.file_url) {
                 await api.downloadBook(selectedBook.file_url, token)
+                // Record reading session
+                try {
+                  await api.recordReading(selectedBook.id, 5, token)
+                } catch (err) {
+                  console.error('Error recording reading session:', err)
+                }
+                // Record download interaction
+                try {
+                  await api.recordInteraction(selectedBook.id, 'download', 1.0, token)
+                } catch (err) {
+                  console.error('Error recording interaction:', err)
+                }
+                // Refresh dashboard after download
+                setTimeout(() => loadDashboard(), 1000)
               }
             } catch (error) {
               console.error('Download error:', error)

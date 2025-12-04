@@ -137,6 +137,22 @@ export default function SearchTab() {
                 const bookData = book.book || book
                 if (token && bookData && bookData.file_url) {
                   await api.downloadBook(bookData.file_url, token)
+                  
+                  // Record reading session
+                  try {
+                    await api.recordReading(bookId, 5, token)
+                    console.log('Reading session recorded for book:', bookId)
+                  } catch (err) {
+                    console.error('Error recording reading session:', err)
+                  }
+                  
+                  // Record download interaction
+                  try {
+                    await api.recordInteraction(bookId, 'download', 1.0, token)
+                    console.log('Download interaction recorded for book:', bookId)
+                  } catch (err) {
+                    console.error('Error recording interaction:', err)
+                  }
                 }
               } catch (error) {
                 console.error('Download error:', error)

@@ -2520,11 +2520,13 @@ def student_dashboard():
     
     user_id = request.current_user['user_id']
     
-    # Check cache
+    # Check cache (but allow cache bypass with query parameter)
     cache_key = f"dashboard_{user_id}"
-    cached_dashboard = get_cached(cache_key)
-    if cached_dashboard is not None:
-        return jsonify(cached_dashboard)
+    bypass_cache = request.args.get('t')  # Timestamp parameter bypasses cache
+    if not bypass_cache:
+        cached_dashboard = get_cached(cache_key)
+        if cached_dashboard is not None:
+            return jsonify(cached_dashboard)
     
     conn = get_db()
     c = conn.cursor()
@@ -2625,48 +2627,54 @@ def student_dashboard():
             else:
                 recommended_books = recommendations.json if hasattr(recommendations, 'json') else []
     
-    conn.close()
-    
-    # Premium analytics (only for premium users)
+    # Premium analytics (only for premium users) - BEFORE closing connection
     premium_analytics = None
     if subscription_level == 'premium':
-        # Time-series data for charts (last 30 days)
-        c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
-                     FROM reading_history
-                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
-                     GROUP BY DATE(created_at)
-                     ORDER BY date''', (user_id,))
-        reading_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
-        
-        c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
-                     FROM search_history
-                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
-                     GROUP BY DATE(created_at)
-                     ORDER BY date''', (user_id,))
-        search_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
-        
-        # Reading patterns by day of week
-        c.execute('''SELECT strftime('%w', created_at) as day_of_week, COUNT(*) as count
-                     FROM reading_history
-                     WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
-                     GROUP BY strftime('%w', created_at)
-                     ORDER BY day_of_week''', (user_id,))
-        day_patterns = [{'day': row['day_of_week'], 'count': row['count']} for row in c.fetchall()]
-        
-        # Most read genres with percentages
-        genre_total = sum(g['count'] for g in favorite_genres)
-        genre_breakdown = [{
-            'genre': g['genre'],
-            'count': g['count'],
-            'percentage': round((g['count'] / genre_total * 100), 1) if genre_total > 0 else 0
-        } for g in favorite_genres]
-        
-        premium_analytics = {
-            'readingTimeline': reading_timeline,
-            'searchTimeline': search_timeline,
-            'dayPatterns': day_patterns,
-            'genreBreakdown': genre_breakdown
-        }
+        try:
+            # Time-series data for charts (last 30 days)
+            c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                         FROM reading_history
+                         WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                         GROUP BY DATE(created_at)
+                         ORDER BY date''', (user_id,))
+            reading_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+            
+            c.execute('''SELECT DATE(created_at) as date, COUNT(*) as count
+                         FROM search_history
+                         WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                         GROUP BY DATE(created_at)
+                         ORDER BY date''', (user_id,))
+            search_timeline = [{'date': row['date'], 'count': row['count']} for row in c.fetchall()]
+            
+            # Reading patterns by day of week
+            c.execute('''SELECT strftime('%w', created_at) as day_of_week, COUNT(*) as count
+                         FROM reading_history
+                         WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+                         GROUP BY strftime('%w', created_at)
+                         ORDER BY day_of_week''', (user_id,))
+            day_patterns = [{'day': row['day_of_week'], 'count': row['count']} for row in c.fetchall()]
+            
+            # Most read genres with percentages
+            genre_total = sum(g['count'] for g in favorite_genres) if favorite_genres else 0
+            genre_breakdown = [{
+                'genre': g['genre'],
+                'count': g['count'],
+                'percentage': round((g['count'] / genre_total * 100), 1) if genre_total > 0 else 0
+            } for g in favorite_genres] if favorite_genres else []
+            
+            premium_analytics = {
+                'readingTimeline': reading_timeline,
+                'searchTimeline': search_timeline,
+                'dayPatterns': day_patterns,
+                'genreBreakdown': genre_breakdown
+            }
+        except Exception as e:
+            print(f"Error generating premium analytics: {e}")
+            import traceback
+            traceback.print_exc()
+            premium_analytics = None
+    
+    conn.close()
     
     dashboard_data = {
         'stats': {

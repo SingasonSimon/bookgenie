@@ -110,7 +110,17 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
     setSubmittingReview(true)
     try {
       const token = localStorage.getItem('bookgenie_token')
-      await api.createBookReview(book.id, reviewRating, reviewComment, token)
+      const result = await api.createBookReview(book.id, reviewRating, reviewComment, token)
+      console.log('Review submitted:', result)
+      
+      // Record review interaction
+      try {
+        await api.recordInteraction(book.id, 'review', reviewRating / 5.0, token)
+        console.log('Review interaction recorded')
+      } catch (err) {
+        console.error('Error recording review interaction:', err)
+      }
+      
       showNotification('Review submitted successfully!', 'success')
       setShowReviewForm(false)
       await loadReviewsAndLikes()
@@ -151,7 +161,8 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       
       // Record reading session (default 5 minutes, user can adjust later)
       try {
-        await api.recordReading(book.id, 5, token)
+        const readingResult = await api.recordReading(book.id, 5, token)
+        console.log('Reading session recorded:', readingResult)
       } catch (err) {
         console.error('Error recording reading session:', err)
         // Don't fail the download if recording fails
@@ -159,7 +170,8 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       
       // Also record download interaction
       try {
-        await api.recordInteraction(book.id, 'download', 1.0, token)
+        const interactionResult = await api.recordInteraction(book.id, 'download', 1.0, token)
+        console.log('Download interaction recorded:', interactionResult)
       } catch (err) {
         console.error('Error recording interaction:', err)
       }
@@ -168,6 +180,9 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       if (onDownload) {
         onDownload()
       }
+      
+      // Refresh parent component if it has a refresh function
+      // This will be handled by the onClose callback
     } catch (error) {
       console.error('Download error:', error)
       showNotification(error.message || 'Failed to download book', 'error')

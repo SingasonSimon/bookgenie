@@ -282,6 +282,23 @@ export default function HomePage() {
                 }
                 if (selectedBook && selectedBook.file_url) {
                   await api.downloadBook(selectedBook.file_url, token)
+                  
+                  // Record reading session
+                  try {
+                    await api.recordReading(selectedBook.id, 5, token)
+                    console.log('Reading session recorded for book:', selectedBook.id)
+                  } catch (err) {
+                    console.error('Error recording reading session:', err)
+                  }
+                  
+                  // Record download interaction
+                  try {
+                    await api.recordInteraction(selectedBook.id, 'download', 1.0, token)
+                    console.log('Download interaction recorded for book:', selectedBook.id)
+                  } catch (err) {
+                    console.error('Error recording interaction:', err)
+                  }
+                  
                   showNotification('Download started', 'success')
                 } else {
                   showNotification('Book file not available', 'error')
