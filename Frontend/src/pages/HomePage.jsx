@@ -34,11 +34,26 @@ export default function HomePage() {
     try {
       setIsLoading(true)
       const token = localStorage.getItem('bookgenie_token')
+      if (!token) {
+        setBooks([])
+        return
+      }
       const booksData = await api.getBooks(token, filters)
-      setBooks(booksData)
-      setSearchResults([])
+      if (Array.isArray(booksData)) {
+        setBooks(booksData)
+        setSearchResults([])
+        if (booksData.length === 0) {
+          showNotification('No books found. Try adjusting your filters.', 'info')
+        }
+      } else {
+        setBooks([])
+        showNotification('Unexpected response format from server.', 'error')
+      }
     } catch (error) {
-      showNotification('Failed to load books. Please login first.', 'error')
+      console.error('Error loading books:', error)
+      const errorMessage = error.message || 'Failed to load books. Please try again.'
+      showNotification(errorMessage, 'error')
+      setBooks([])
     } finally {
       setIsLoading(false)
     }
@@ -76,10 +91,21 @@ export default function HomePage() {
       setIsLoading(true)
       const token = localStorage.getItem('bookgenie_token')
       const results = await api.search(query, token)
-      setSearchResults(results)
-      setBooks([])
+      if (Array.isArray(results)) {
+        setSearchResults(results)
+        setBooks([])
+        if (results.length === 0) {
+          showNotification('No results found. Try a different search query.', 'info')
+        }
+      } else {
+        setSearchResults([])
+        showNotification('Unexpected response format from server.', 'error')
+      }
     } catch (error) {
-      showNotification('Search failed. Check backend connection.', 'error')
+      console.error('Search error:', error)
+      const errorMessage = error.message || 'Search failed. Please check your connection and try again.'
+      showNotification(errorMessage, 'error')
+      setSearchResults([])
     } finally {
       setIsLoading(false)
     }
@@ -105,7 +131,7 @@ export default function HomePage() {
   const displayBooks = searchResults.length > 0 ? searchResults.map(r => r.book || r) : books
 
   return (
-    <div className="min-h-screen gradient-bg p-4 sm:p-5">
+    <div className="min-h-screen blob-bg p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <Navbar
           user={user}

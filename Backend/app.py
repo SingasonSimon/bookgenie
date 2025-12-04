@@ -1,19 +1,26 @@
 from sentence_transformers import SentenceTransformer
-from flask import Flask, request, jsonify, session, send_from_directory, send_file
+from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import jwt
 import datetime
-from functools import wraps
+from functools import wraps, lru_cache
 import hashlib
 import os
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 import time
-from functools import lru_cache
 import threading
+
+# Helper function to safely get values from sqlite3.Row objects
+def row_get(row, key, default=None):
+    """Safely get a value from a sqlite3.Row object with a default value"""
+    try:
+        return row[key] if key in row.keys() else default
+    except (KeyError, TypeError):
+        return default
 
 # Elasticsearch imports (optional)
 try:
@@ -28,10 +35,26 @@ app = Flask(__name__)
 app.secret_key = 'bookgenie-local-secret-key-2024'
 CORS(app, 
      supports_credentials=True,
-     origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000"],
+     origins=[
+         "http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000",
+         "http://localhost:5173", "http://127.0.0.1:5173",
+         "http://localhost:3000", "http://127.0.0.1:3000",
+         "http://localhost:5174", "http://127.0.0.1:5174"
+     ],
      allow_headers=["Content-Type", "Authorization", "Accept"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      expose_headers=["Content-Type"])
+
+# Global error handler to ensure CORS headers are always present
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all exceptions and ensure CORS headers are present"""
+    import traceback
+    print(f"Error: {e}")
+    print(traceback.format_exc())
+    response = jsonify({'error': str(e)})
+    response.status_code = 500
+    return response
 
 # Note: CORS headers are handled by flask_cors, no need for manual after_request handler
 
@@ -122,8 +145,8 @@ def generate_token(user_id, email, role):
         'user_id': user_id,
         'email': email,
         'role': role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_EXPIRATION_HOURS),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.datetime.now(datetime.UTC)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -139,24 +162,32 @@ def verify_token(token):
 def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = None
-        auth_header = request.headers.get('Authorization')
-        
-        if auth_header:
-            try:
-                token = auth_header.split(' ')[1]  # Bearer <token>
-            except IndexError:
-                return jsonify({'error': 'Invalid token format'}), 401
-        
-        if not token:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        payload = verify_token(token)
-        if not payload:
-            return jsonify({'error': 'Invalid or expired token'}), 401
-        
-        request.current_user = payload
-        return f(*args, **kwargs)
+        try:
+            token = None
+            auth_header = request.headers.get('Authorization')
+            
+            if auth_header:
+                try:
+                    token = auth_header.split(' ')[1]  # Bearer <token>
+                except IndexError:
+                    response = jsonify({'error': 'Invalid token format'})
+                    return response, 401
+            
+            if not token:
+                response = jsonify({'error': 'Authentication required'})
+                return response, 401
+            
+            payload = verify_token(token)
+            if not payload:
+                response = jsonify({'error': 'Invalid or expired token'})
+                return response, 401
+            
+            request.current_user = payload
+            return f(*args, **kwargs)
+        except Exception as e:
+            # Ensure CORS headers are present even on errors
+            response = jsonify({'error': str(e)})
+            return response, 500
     return decorated_function
 
 def require_admin(f):
@@ -521,17 +552,19 @@ def load_sample_data():
     # Create admin user
     c.execute("SELECT COUNT(*) FROM users WHERE email=?", ('admin@bookgenie.edu',))
     if c.fetchone()[0] == 0:
+        admin_password_hash = hashlib.sha256('admin123'.encode()).hexdigest()
         c.execute('''INSERT INTO users (email, password, first_name, last_name, avatar, academic_level, role, subscription_level, department)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                 ('admin@bookgenie.edu', 'admin123', 'Admin', 'User', 'admin', 'faculty', 'admin', 'premium', 'Administration'))
+                 ('admin@bookgenie.edu', admin_password_hash, 'Admin', 'User', 'admin', 'faculty', 'admin', 'premium', 'Administration'))
         print("Admin user created!")
     
     # Create sample student user
     c.execute("SELECT COUNT(*) FROM users WHERE email=?", ('student@university.edu',))
     if c.fetchone()[0] == 0:
+        student_password_hash = hashlib.sha256('student123'.encode()).hexdigest()
         c.execute('''INSERT INTO users (email, password, first_name, last_name, avatar, academic_level, role, subscription_level, department)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                 ('student@university.edu', 'student123', 'Student', 'User', 'student', 'undergraduate', 'student', 'free', 'Computer Science'))
+                 ('student@university.edu', student_password_hash, 'Student', 'User', 'student', 'undergraduate', 'student', 'free', 'Computer Science'))
         print("Sample student user created!")
     
     # Load categories
@@ -1258,14 +1291,14 @@ class ElasticsearchService:
                     'id': row['id'],
                     'title': row['title'],
                     'author': row['author'],
-                    'abstract': row['abstract'] or '',
-                    'genre': row['genre'],
-                    'academic_level': row['academic_level'],
+                    'abstract': row['abstract'] if row['abstract'] else '',
+                    'genre': row['genre'] if row['genre'] else '',
+                    'academic_level': row['academic_level'] if row['academic_level'] else '',
                     'tags': row['tags'].split(',') if row['tags'] else [],
-                    'subscription_level': row.get('subscription_level', 'free'),
-                    'cover_image': row.get('cover_image', 'book'),
-                    'pages': row.get('pages', 0),
-                    'created_at': row.get('created_at', datetime.datetime.now().isoformat())
+                    'subscription_level': row_get(row, 'subscription_level', 'free'),
+                    'cover_image': row_get(row, 'cover_image', 'book'),
+                    'pages': row_get(row, 'pages', 0),
+                    'created_at': row_get(row, 'created_at', datetime.datetime.now(datetime.UTC).isoformat())
                 })
             
             return self.bulk_index_books(books)
@@ -1305,11 +1338,11 @@ class HybridRecommendationEngine:
                 'id': row['id'],
                 'title': row['title'],
                 'author': row['author'],
-                'abstract': row['abstract'] or '',
-                'genre': row['genre'],
-                'academic_level': row['academic_level'],
+                'abstract': row['abstract'] if row['abstract'] else '',
+                'genre': row['genre'] if row['genre'] else '',
+                'academic_level': row['academic_level'] if row['academic_level'] else '',
                 'tags': row['tags'].split(',') if row['tags'] else [],
-                'cover_image': row.get('cover_image', 'book')
+                'cover_image': row_get(row, 'cover_image', 'book')
             })
         
         # Get all other books (excluding user's read books)
@@ -1320,11 +1353,11 @@ class HybridRecommendationEngine:
                 'id': row['id'],
                 'title': row['title'],
                 'author': row['author'],
-                'abstract': row['abstract'] or '',
-                'genre': row['genre'],
-                'academic_level': row['academic_level'],
+                'abstract': row['abstract'] if row['abstract'] else '',
+                'genre': row['genre'] if row['genre'] else '',
+                'academic_level': row['academic_level'] if row['academic_level'] else '',
                 'tags': row['tags'].split(',') if row['tags'] else [],
-                'cover_image': row.get('cover_image', 'book')
+                'cover_image': row_get(row, 'cover_image', 'book')
             })
         
         if not candidate_books:
@@ -1393,11 +1426,11 @@ class HybridRecommendationEngine:
                         'id': row['id'],
                         'title': row['title'],
                         'author': row['author'],
-                        'abstract': row['abstract'] or '',
-                        'genre': row['genre'],
-                        'academic_level': row['academic_level'],
+                        'abstract': row['abstract'] if row['abstract'] else '',
+                        'genre': row['genre'] if row['genre'] else '',
+                        'academic_level': row['academic_level'] if row['academic_level'] else '',
                         'tags': row['tags'].split(',') if row['tags'] else [],
-                        'cover_image': row.get('cover_image', 'book')
+                        'cover_image': row_get(row, 'cover_image', 'book')
                     }
                 
                 for rec in collaborative_recs_raw:
@@ -1639,49 +1672,60 @@ def auth_register():
 
 @app.route('/api/auth/login', methods=['POST'])
 def auth_login():
-    data = request.json
-    conn = get_db()
-    c = conn.cursor()
-    
-    password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
-    
-    c.execute('''SELECT id, email, first_name, last_name, avatar, academic_level, role, 
-                 subscription_level, department, created_at FROM users 
-                 WHERE email=? AND password=?''',
-              (data['email'], password_hash))
-    user_row = c.fetchone()
-    
-    if user_row:
-        # Update last login
-        c.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id=?', (user_row['id'],))
-        conn.commit()
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Generate token
-        token = generate_token(user_row['id'], user_row['email'], user_row['role'])
+        if 'email' not in data or 'password' not in data:
+            return jsonify({'success': False, 'error': 'Email and password required'}), 400
         
-        user = {
-            'id': user_row['id'],
-            'email': user_row['email'],
-            'firstName': user_row['first_name'] or '',
-            'lastName': user_row['last_name'] or '',
-            'avatar': user_row['avatar'] or 'user',
-            'academicLevel': user_row['academic_level'],
-            'role': user_row['role'],
-            'subscriptionLevel': user_row['subscription_level'] or 'free',
-            'department': user_row['department'] or '',
-            'createdAt': user_row['created_at']
-        }
+        conn = get_db()
+        c = conn.cursor()
         
-        conn.close()
+        password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
         
-        return jsonify({
-            'success': True,
-            'token': token,
-            'user': user
-        })
-    else:
-        conn.close()
-        return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+        c.execute('''SELECT id, email, first_name, last_name, avatar, academic_level, role, 
+                     subscription_level, department, created_at FROM users 
+                     WHERE email=? AND password=?''',
+                  (data['email'], password_hash))
+        user_row = c.fetchone()
+        
+        if user_row:
+            # Update last login
+            c.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id=?', (user_row['id'],))
+            conn.commit()
+            
+            # Generate token
+            token = generate_token(user_row['id'], user_row['email'], user_row['role'])
+            
+            user = {
+                'id': user_row['id'],
+                'email': user_row['email'],
+                'firstName': user_row['first_name'] or '',
+                'lastName': user_row['last_name'] or '',
+                'avatar': user_row['avatar'] or 'user',
+                'academicLevel': user_row['academic_level'],
+                'role': user_row['role'],
+                'subscriptionLevel': user_row['subscription_level'] or 'free',
+                'department': user_row['department'] or '',
+                'createdAt': user_row['created_at']
+            }
+            
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'token': token,
+                'user': user
+            })
+        else:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'success': False, 'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/auth/verify', methods=['POST'])
 def auth_verify():
@@ -1763,74 +1807,87 @@ def get_user():
 @app.route('/api/books', methods=['GET', 'POST'])
 @require_auth
 def books():
-    if request.method == 'GET':
-        # Check cache first
-        genre = request.args.get('genre')
-        level = request.args.get('academic_level')
-        user_id = request.current_user['user_id']
-        
-        # Get user subscription from database (not from token)
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('SELECT subscription_level FROM users WHERE id=?', (user_id,))
-        user_row = c.fetchone()
-        user_subscription = user_row['subscription_level'] or 'free' if user_row else 'free'
-        
-        # Build cache key
-        cache_key = f"books_{user_subscription}_{genre or 'all'}_{level or 'all'}"
-        cached_books = get_cached(cache_key)
-        
-        if cached_books is not None:
+    try:
+        if request.method == 'GET':
+            # Check cache first
+            genre = request.args.get('genre')
+            level = request.args.get('academic_level')
+            user_id = request.current_user['user_id']
+            
+            # Get user subscription from database (not from token)
+            conn = get_db()
+            c = conn.cursor()
+            c.execute('SELECT subscription_level FROM users WHERE id=?', (user_id,))
+            user_row = c.fetchone()
+            user_subscription = user_row['subscription_level'] or 'free' if user_row else 'free'
+            
+            # Build cache key
+            cache_key = f"books_{user_subscription}_{genre or 'all'}_{level or 'all'}"
+            cached_books = get_cached(cache_key)
+            
+            if cached_books is not None:
+                conn.close()
+                return jsonify(cached_books)
+            
+            # Optimized query using indexes
+            if user_subscription == 'free':
+                base_query = "SELECT * FROM books WHERE subscription_level = 'free'"
+                params = []
+            elif user_subscription == 'basic':
+                base_query = "SELECT * FROM books WHERE subscription_level IN ('free', 'basic')"
+                params = []
+            else:
+                base_query = "SELECT * FROM books WHERE 1=1"
+                params = []
+            
+            # Add filters (these use indexes)
+            if genre:
+                base_query += " AND genre = ?"
+                params.append(genre)
+            if level:
+                base_query += " AND academic_level = ?"
+                params.append(level)
+            
+            # Use index on created_at DESC
+            base_query += " ORDER BY created_at DESC LIMIT 1000"
+            
+            c.execute(base_query, params)
+            books = []
+            for row in c.fetchall():
+                books.append({
+                    'id': row['id'],
+                    'title': row['title'],
+                    'author': row['author'],
+                    'abstract': row['abstract'] if row['abstract'] else '',
+                    'genre': row['genre'] if row['genre'] else '',
+                    'academic_level': row['academic_level'] if row['academic_level'] else '',
+                    'tags': row['tags'].split(',') if row['tags'] else [],
+                    'file_url': row['file_url'] if row['file_url'] else '',
+                    'cover_image': row_get(row, 'cover_image', 'book'),
+                    'subscription_level': row_get(row, 'subscription_level', 'free'),
+                    'pages': row_get(row, 'pages', 0)
+                })
+            
             conn.close()
-            return jsonify(cached_books)
-        
-        # Optimized query using indexes
-        if user_subscription == 'free':
-            base_query = "SELECT * FROM books WHERE subscription_level = 'free'"
-            params = []
-        elif user_subscription == 'basic':
-            base_query = "SELECT * FROM books WHERE subscription_level IN ('free', 'basic')"
-            params = []
-        else:
-            base_query = "SELECT * FROM books WHERE 1=1"
-            params = []
-        
-        # Add filters (these use indexes)
-        if genre:
-            base_query += " AND genre = ?"
-            params.append(genre)
-        if level:
-            base_query += " AND academic_level = ?"
-            params.append(level)
-        
-        # Use index on created_at DESC
-        base_query += " ORDER BY created_at DESC LIMIT 1000"
-        
-        c.execute(base_query, params)
-        books = []
-        for row in c.fetchall():
-            books.append({
-                'id': row['id'],
-                'title': row['title'],
-                'author': row['author'],
-                'abstract': row['abstract'],
-                'genre': row['genre'],
-                'academic_level': row['academic_level'],
-                'tags': row['tags'].split(',') if row['tags'] else [],
-                'file_url': row['file_url'],
-                'cover_image': row.get('cover_image', 'book'),
-                'subscription_level': row.get('subscription_level', 'free'),
-                'pages': row.get('pages', 0)
-            })
-        
-        conn.close()
-        
-        # Cache the results
-        set_cached(cache_key, books)
-        
-        # Generate embeddings (cached)
-        ai_engine.generate_embeddings(books, use_cache=True)
-        return jsonify(books)
+            
+            # Cache the results
+            set_cached(cache_key, books)
+            
+            # Generate embeddings (cached) - wrap in try-except to prevent errors
+            try:
+                ai_engine.generate_embeddings(books, use_cache=True)
+            except Exception as e:
+                print(f"Warning: Failed to generate embeddings: {e}")
+                # Continue without embeddings
+            
+            return jsonify(books)
+    except Exception as e:
+        import traceback
+        print(f"Error in books endpoint: {e}")
+        print(traceback.format_exc())
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': str(e)}), 500
     
     else:  # POST - Add new book (admin only)
         if request.current_user.get('role') != 'admin':
@@ -1940,13 +1997,13 @@ def admin_book_management(book_id):
                     'id': book_row['id'],
                     'title': book_row['title'],
                     'author': book_row['author'],
-                    'abstract': book_row['abstract'] or '',
-                    'genre': book_row['genre'],
-                    'academic_level': book_row['academic_level'],
+                    'abstract': book_row['abstract'] if book_row['abstract'] else '',
+                    'genre': book_row['genre'] if book_row['genre'] else '',
+                    'academic_level': book_row['academic_level'] if book_row['academic_level'] else '',
                     'tags': book_row['tags'].split(',') if book_row['tags'] else [],
-                    'subscription_level': book_row.get('subscription_level', 'free'),
-                    'cover_image': book_row.get('cover_image', 'book'),
-                    'pages': book_row.get('pages', 0)
+                    'subscription_level': row_get(book_row, 'subscription_level', 'free'),
+                    'cover_image': row_get(book_row, 'cover_image', 'book'),
+                    'pages': row_get(book_row, 'pages', 0)
                 }
                 es_service.index_book(book_data)
         
@@ -2062,11 +2119,11 @@ def get_recommendations(book_id):
             'id': row['id'],
             'title': row['title'],
             'author': row['author'],
-            'abstract': row['abstract'],
-            'genre': row['genre'],
-            'academic_level': row['academic_level'],
+            'abstract': row['abstract'] if row['abstract'] else '',
+            'genre': row['genre'] if row['genre'] else '',
+            'academic_level': row['academic_level'] if row['academic_level'] else '',
             'tags': row['tags'].split(',') if row['tags'] else [],
-            'cover_image': row.get('cover_image', 'book')
+            'cover_image': row_get(row, 'cover_image', 'book')
         })
     
     c.execute("SELECT * FROM books WHERE id = ?", (book_id,))
@@ -2179,11 +2236,11 @@ def search():
             'id': row['id'],
             'title': row['title'],
             'author': row['author'],
-            'abstract': row['abstract'],
-            'genre': row['genre'],
-            'academic_level': row['academic_level'],
+            'abstract': row['abstract'] if row['abstract'] else '',
+            'genre': row['genre'] if row['genre'] else '',
+            'academic_level': row['academic_level'] if row['academic_level'] else '',
             'tags': row['tags'].split(',') if row['tags'] else [],
-            'cover_image': row.get('cover_image', 'book')
+            'cover_image': row_get(row, 'cover_image', 'book')
         })
     
     # Log search history if user is authenticated
@@ -2460,13 +2517,13 @@ def get_collaborative_recommendations():
             'id': row['id'],
             'title': row['title'],
             'author': row['author'],
-            'abstract': row['abstract'],
-            'genre': row['genre'],
-            'academic_level': row['academic_level'],
+            'abstract': row['abstract'] if row['abstract'] else '',
+            'genre': row['genre'] if row['genre'] else '',
+            'academic_level': row['academic_level'] if row['academic_level'] else '',
             'tags': row['tags'].split(',') if row['tags'] else [],
-            'cover_image': row.get('cover_image', 'book'),
-            'subscription_level': row.get('subscription_level', 'free'),
-            'pages': row.get('pages', 0)
+            'cover_image': row_get(row, 'cover_image', 'book'),
+            'subscription_level': row_get(row, 'subscription_level', 'free'),
+            'pages': row_get(row, 'pages', 0)
         }
     
     conn.close()
@@ -2652,7 +2709,7 @@ def admin_user_detail(user_id):
             'subscriptionLevel': user_row['subscription_level'] or 'free',
             'department': user_row['department'] or '',
             'createdAt': user_row['created_at'],
-            'lastLogin': user_row.get('last_login'),
+            'lastLogin': row_get(user_row, 'last_login'),
             'stats': {
                 'searchCount': search_count,
                 'readingCount': reading_count,
@@ -2916,7 +2973,7 @@ def user_subscription():
             'currentLevel': row['current_level'],
             'status': row['status'],
             'createdAt': row['created_at'],
-            'approvedAt': row.get('approved_at')
+            'approvedAt': row_get(row, 'approved_at')
         })
     
     conn.close()

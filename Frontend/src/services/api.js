@@ -86,11 +86,19 @@ export class BookGenieAPI {
     if (filters.genre) params.append('genre', filters.genre)
     if (filters.academic_level) params.append('academic_level', filters.academic_level)
 
-    return this.request(`/books?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
+    try {
+      const data = await this.request(`/books?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      // Ensure we return an array
+      return Array.isArray(data) ? data : []
+    } catch (error) {
+      console.error('Failed to fetch books:', error)
+      // Return empty array on error instead of throwing
+      return []
+    }
   }
 
   async search(query, token = null) {
