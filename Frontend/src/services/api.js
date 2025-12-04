@@ -115,5 +115,19 @@ export class BookGenieAPI {
 
     return data.results || []
   }
+
+  async getBook(bookId, token) {
+    try {
+      const data = await this.request(`/books/${bookId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      return data
+    } catch (error) {
+      console.error('Failed to fetch book:', error)
+      throw error
+    }
+  }
 }
 

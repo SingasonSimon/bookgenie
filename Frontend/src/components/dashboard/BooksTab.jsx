@@ -3,14 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { BookText, Plus, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
+import BookDetailsModal from '../BookDetailsModal'
 import PageHeader from '../PageHeader'
 import { GridSkeleton } from '../LoadingSkeleton'
+import { BookGenieAPI } from '../../services/api'
 
 export default function BooksTab() {
   const { user } = useAuth()
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [selectedBook, setSelectedBook] = useState(null)
+  const api = new BookGenieAPI()
 
   useEffect(() => {
     loadBooks()
@@ -41,15 +45,15 @@ export default function BooksTab() {
         title="Manage Books"
         description="Add, edit, and manage library content"
         action={
-          <motion.button
+        <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Book
-          </motion.button>
+          onClick={() => setShowAddModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Add New Book
+        </motion.button>
         }
       />
 
@@ -84,8 +88,19 @@ export default function BooksTab() {
               <BookCard
                 book={book}
                 user={{ role: 'admin' }}
-                onView={() => {
-                  alert(`Book: ${book.title}\nAuthor: ${book.author}\n\n${book.abstract || 'No abstract available'}`)
+                onView={async () => {
+                  try {
+                    const token = localStorage.getItem('bookgenie_token')
+                    if (token) {
+                      const bookData = await api.getBook(book.id, token)
+                      setSelectedBook(bookData)
+                    } else {
+                      setSelectedBook(book)
+                    }
+                  } catch (error) {
+                    console.error('Error fetching book details:', error)
+                    setSelectedBook(book)
+                  }
                 }}
                 onDownload={() => {
                   if (book.file_url) {
@@ -136,6 +151,19 @@ export default function BooksTab() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {selectedBook && (
+        <BookDetailsModal
+          book={selectedBook}
+          user={user}
+          onClose={() => setSelectedBook(null)}
+          onDownload={() => {
+            if (selectedBook && selectedBook.file_url) {
+              window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

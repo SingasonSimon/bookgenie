@@ -1685,9 +1685,10 @@ def auth_login():
         
         password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
         
+        # Use LOWER() for case-insensitive email matching
         c.execute('''SELECT id, email, first_name, last_name, avatar, academic_level, role, 
                      subscription_level, department, created_at FROM users 
-                     WHERE email=? AND password=?''',
+                     WHERE LOWER(email)=LOWER(?) AND password=?''',
                   (data['email'], password_hash))
         user_row = c.fetchone()
         
@@ -1935,6 +1936,59 @@ def books():
         except Exception as e:
             conn.close()
             return jsonify({'error': str(e)}), 500
+
+@app.route('/api/books/<int:book_id>', methods=['GET'])
+@require_auth
+def get_book(book_id):
+    """Get a single book by ID"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        # Get user subscription to check access
+        user_id = request.current_user['user_id']
+        c.execute('SELECT subscription_level FROM users WHERE id=?', (user_id,))
+        user_row = c.fetchone()
+        user_subscription = user_row['subscription_level'] or 'free' if user_row else 'free'
+        
+        # Get book
+        c.execute('SELECT * FROM books WHERE id=?', (book_id,))
+        row = c.fetchone()
+        
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Book not found'}), 404
+        
+        # Check subscription access
+        book_subscription = row_get(row, 'subscription_level', 'free')
+        if book_subscription == 'premium' and user_subscription != 'premium':
+            conn.close()
+            return jsonify({'error': 'Premium subscription required'}), 403
+        elif book_subscription == 'basic' and user_subscription == 'free':
+            conn.close()
+            return jsonify({'error': 'Basic subscription required'}), 403
+        
+        book = {
+            'id': row['id'],
+            'title': row['title'],
+            'author': row['author'],
+            'abstract': row['abstract'] if row['abstract'] else '',
+            'genre': row['genre'] if row['genre'] else '',
+            'academic_level': row['academic_level'] if row['academic_level'] else '',
+            'tags': row['tags'].split(',') if row['tags'] else [],
+            'file_url': row['file_url'] if row['file_url'] else '',
+            'cover_image': row_get(row, 'cover_image', 'book'),
+            'subscription_level': row_get(row, 'subscription_level', 'free'),
+            'pages': row_get(row, 'pages', 0),
+            'created_at': row['created_at'] if 'created_at' in row.keys() else None
+        }
+        
+        conn.close()
+        return jsonify(book)
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/books/<int:book_id>', methods=['PUT', 'DELETE'])
 @require_admin

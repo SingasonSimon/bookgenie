@@ -42,7 +42,7 @@ export default function SearchSection({ onSearch, onQuickSearch, filters, onFilt
             <span className="hidden sm:inline">Search</span>
           </motion.button>
         </div>
-      </form>
+        </form>
 
       <div className="space-y-4">
         <div className="flex gap-2 items-center flex-wrap">
@@ -71,29 +71,29 @@ export default function SearchSection({ onSearch, onQuickSearch, filters, onFilt
             <Filter className="w-4 h-4 text-gray-500" />
             <span className="text-gray-600 font-medium text-sm">Filters:</span>
           </div>
-          <select
-            value={filters.genre}
-            onChange={(e) => onFilterChange('genre', e.target.value)}
+            <select
+              value={filters.genre}
+              onChange={(e) => onFilterChange('genre', e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all text-sm bg-white font-medium text-gray-700"
-          >
-            <option value="">All Genres</option>
-            <option value="Computer Science">Computer Science</option>
-            <option value="Mathematics">Mathematics</option>
-            <option value="Physics">Physics</option>
-            <option value="Biology">Biology</option>
-            <option value="Chemistry">Chemistry</option>
-            <option value="Literature">Literature</option>
-          </select>
-          <select
-            value={filters.academic_level}
-            onChange={(e) => onFilterChange('academic_level', e.target.value)}
+            >
+              <option value="">All Genres</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Mathematics">Mathematics</option>
+              <option value="Physics">Physics</option>
+              <option value="Biology">Biology</option>
+              <option value="Chemistry">Chemistry</option>
+              <option value="Literature">Literature</option>
+            </select>
+            <select
+              value={filters.academic_level}
+              onChange={(e) => onFilterChange('academic_level', e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all text-sm bg-white font-medium text-gray-700"
-          >
-            <option value="">All Levels</option>
-            <option value="undergraduate">Undergraduate</option>
-            <option value="graduate">Graduate</option>
-            <option value="postgraduate">Postgraduate</option>
-          </select>
+            >
+              <option value="">All Levels</option>
+              <option value="undergraduate">Undergraduate</option>
+              <option value="graduate">Graduate</option>
+              <option value="postgraduate">Postgraduate</option>
+            </select>
           {hasFilters && (
             <motion.button
               initial={{ opacity: 0 }}

@@ -91,7 +91,7 @@ export default function AnalyticsTab() {
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
                     <Icon className={`w-6 h-6 ${stat.color}`} />
-                  </div>
+                    </div>
                   <div>
                     <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
                     <div className="text-gray-600 text-sm font-medium">{stat.label}</div>

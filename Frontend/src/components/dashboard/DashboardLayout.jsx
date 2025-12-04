@@ -33,22 +33,22 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
             <div className="flex justify-between items-center h-18 sm:h-20">
             <div className="flex items-center gap-6 sm:gap-8">
               <div className="flex items-center gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onHomeClick}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onHomeClick}
                   className="flex items-center gap-3 cursor-pointer group"
-                >
+              >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
                     <BookOpen className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex flex-col">
                     <span className="text-2xl sm:text-3xl font-display font-bold text-gradient leading-tight">
-                      BookGenie
-                    </span>
+                    BookGenie
+                  </span>
                     <span className="text-gray-600 text-sm font-medium hidden sm:block mt-0.5">AI-Powered Academic Library</span>
-                  </div>
-                </motion.button>
+                </div>
+              </motion.button>
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -204,10 +204,10 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                   {tabs.map(tab => {
                     const Icon = tab.icon
                     return (
-                      <motion.button
+                  <motion.button
                         key={tab.id}
                         whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.98 }}
                         onClick={() => {
                           onTabChange(tab.id)
                           setSidebarOpen(false)
@@ -217,30 +217,30 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                             ? 'bg-primary-50 text-primary-700'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}
-                      >
+                  >
                         <Icon className="w-5 h-5" />
                         <span>{tab.label}</span>
-                      </motion.button>
+                  </motion.button>
                     )
                   })}
-                </div>
+            </div>
               </motion.div>
-            </aside>
+        </aside>
           </>
 
-          {/* Main Content Area */}
+        {/* Main Content Area */}
           <div className="lg:col-span-9">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
-              {children}
-            </motion.div>
+            className="space-y-6"
+          >
+            {children}
+          </motion.div>
+            </div>
           </div>
-        </div>
       </main>
     </div>
   )

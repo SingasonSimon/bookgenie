@@ -4,6 +4,7 @@ import { Search, Sparkles } from 'lucide-react'
 import { BookGenieAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import BooksGrid from '../BooksGrid'
+import BookDetailsModal from '../BookDetailsModal'
 import PageHeader from '../PageHeader'
 import LoadingIndicator from '../LoadingIndicator'
 import Spinner from '../Spinner'
@@ -13,6 +14,7 @@ export default function SearchTab() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [selectedBook, setSelectedBook] = useState(null)
   const api = new BookGenieAPI()
 
   const handleSearch = async (e) => {
@@ -96,17 +98,43 @@ export default function SearchTab() {
           searchResults={results}
           user={user}
           loading={loading}
-          onViewBook={(bookId) => {
-            const book = results.find(r => (r.book || r).id === bookId)
-            if (book) {
-              const b = book.book || book
-              alert(`Book: ${b.title}\nAuthor: ${b.author}\n\n${b.abstract || 'No abstract available'}`)
+          onViewBook={async (bookId) => {
+            try {
+              const token = localStorage.getItem('bookgenie_token')
+              if (token) {
+                const bookData = await api.getBook(bookId, token)
+                setSelectedBook(bookData)
+              } else {
+                const book = results.find(r => (r.book || r).id === bookId)
+                if (book) {
+                  setSelectedBook(book.book || book)
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching book details:', error)
+              const book = results.find(r => (r.book || r).id === bookId)
+              if (book) {
+                setSelectedBook(book.book || book)
+              }
             }
           }}
           onDownloadBook={(bookId) => {
             const book = results.find(r => (r.book || r).id === bookId)
             if (book && (book.book || book).file_url) {
               window.open(`http://localhost:5000${(book.book || book).file_url}`, '_blank')
+            }
+          }}
+        />
+      )}
+
+      {selectedBook && (
+        <BookDetailsModal
+          book={selectedBook}
+          user={user}
+          onClose={() => setSelectedBook(null)}
+          onDownload={() => {
+            if (selectedBook && selectedBook.file_url) {
+              window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
             }
           }}
         />

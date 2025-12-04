@@ -6,6 +6,7 @@ import SearchSection from '../components/SearchSection'
 import BooksGrid from '../components/BooksGrid'
 import LoginModal from '../components/LoginModal'
 import RegisterModal from '../components/RegisterModal'
+import BookDetailsModal from '../components/BookDetailsModal'
 import Notification from '../components/Notification'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { useAuth } from '../contexts/AuthContext'
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [selectedBook, setSelectedBook] = useState(null)
   const [notification, setNotification] = useState(null)
   const [filters, setFilters] = useState({ genre: '', academic_level: '' })
 
@@ -155,13 +157,13 @@ export default function HomePage() {
             </p>
           </div>
 
-          <SearchSection
-            onSearch={handleSearch}
-            onQuickSearch={handleQuickSearch}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onClearFilters={clearFilters}
-          />
+        <SearchSection
+          onSearch={handleSearch}
+          onQuickSearch={handleQuickSearch}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+        />
         </section>
 
         {/* Stats Section */}
@@ -171,34 +173,48 @@ export default function HomePage() {
 
         {/* Books Section */}
         <section>
-          {isLoading && <LoadingIndicator />}
+        {isLoading && <LoadingIndicator />}
 
-          {!isLoading && (
-            <BooksGrid
-              books={displayBooks}
-              searchResults={searchResults}
-              user={user}
-              loading={isLoading}
-              onViewBook={(bookId) => {
-                const book = displayBooks.find(b => b.id === bookId)
-                if (book) {
-                  alert(`Book: ${book.title}\nAuthor: ${book.author}\n\n${book.abstract || 'No abstract available'}`)
-                }
-              }}
-              onDownloadBook={async (bookId) => {
-                if (!user) {
-                  showNotification('Please login to download books', 'error')
+        {!isLoading && (
+          <BooksGrid
+            books={displayBooks}
+            searchResults={searchResults}
+            user={user}
+            loading={isLoading}
+            onViewBook={async (bookId) => {
+              try {
+                const token = localStorage.getItem('bookgenie_token')
+                if (!token) {
+                  showNotification('Please login to view book details', 'error')
                   return
                 }
+                const bookData = await api.getBook(bookId, token)
+                setSelectedBook(bookData)
+              } catch (error) {
+                console.error('Error fetching book details:', error)
+                // Fallback to using book from list if API fails
                 const book = displayBooks.find(b => b.id === bookId)
-                if (book && book.file_url) {
-                  window.open(`http://localhost:5000${book.file_url}`, '_blank')
+                if (book) {
+                  setSelectedBook(book)
                 } else {
-                  showNotification('Book file not available', 'error')
+                  showNotification('Failed to load book details', 'error')
                 }
-              }}
-            />
-          )}
+              }
+            }}
+            onDownloadBook={async (bookId) => {
+              if (!user) {
+                showNotification('Please login to download books', 'error')
+                return
+              }
+              const book = displayBooks.find(b => b.id === bookId) || selectedBook
+              if (book && book.file_url) {
+                window.open(`http://localhost:5000${book.file_url}`, '_blank')
+              } else {
+                showNotification('Book file not available', 'error')
+              }
+            }}
+          />
+        )}
         </section>
 
         {showLoginModal && (
@@ -219,6 +235,21 @@ export default function HomePage() {
             onSwitchToLogin={() => {
               setShowRegisterModal(false)
               setShowLoginModal(true)
+            }}
+          />
+        )}
+
+        {selectedBook && (
+          <BookDetailsModal
+            book={selectedBook}
+            user={user}
+            onClose={() => setSelectedBook(null)}
+            onDownload={async () => {
+              if (selectedBook && selectedBook.file_url) {
+                window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
+              } else {
+                showNotification('Book file not available', 'error')
+              }
             }}
           />
         )}

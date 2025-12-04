@@ -3,14 +3,18 @@ import { motion } from 'framer-motion'
 import { BookOpen, Search, BookMarked, Star, Sparkles } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import BookCard from '../BookCard'
+import BookDetailsModal from '../BookDetailsModal'
 import PageHeader from '../PageHeader'
 import { StatCardSkeleton, GridSkeleton } from '../LoadingSkeleton'
+import { BookGenieAPI } from '../../services/api'
 
 export default function DashboardTab() {
   const { user } = useAuth()
   const [stats, setStats] = useState(null)
   const [recommendedBooks, setRecommendedBooks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedBook, setSelectedBook] = useState(null)
+  const api = new BookGenieAPI()
 
   useEffect(() => {
     loadDashboard()
@@ -145,8 +149,19 @@ export default function DashboardTab() {
                     book={book}
                     relevance={item.relevance_percentage || item.similarity_score}
                     user={user}
-                    onView={() => {
-                      alert(`Book: ${book.title}\nAuthor: ${book.author}\n\n${book.abstract || 'No abstract available'}`)
+                    onView={async () => {
+                      try {
+                        const token = localStorage.getItem('bookgenie_token')
+                        if (token && book.id) {
+                          const bookData = await api.getBook(book.id, token)
+                          setSelectedBook(bookData)
+                        } else {
+                          setSelectedBook(book)
+                        }
+                      } catch (error) {
+                        console.error('Error fetching book details:', error)
+                        setSelectedBook(book)
+                      }
                     }}
                     onDownload={() => {
                       if (book.file_url) {
@@ -168,6 +183,19 @@ export default function DashboardTab() {
           <Sparkles className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-600">No recommendations yet. Start reading to get personalized suggestions!</p>
         </motion.div>
+      )}
+
+      {selectedBook && (
+        <BookDetailsModal
+          book={selectedBook}
+          user={user}
+          onClose={() => setSelectedBook(null)}
+          onDownload={() => {
+            if (selectedBook && selectedBook.file_url) {
+              window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
+            }
+          }}
+        />
       )}
     </div>
   )
