@@ -30,6 +30,17 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
   useEffect(() => {
     if (book) {
       loadReviewsAndLikes()
+      
+      // Record view interaction when modal opens (if user is logged in)
+      if (currentUser && book.id) {
+        const token = localStorage.getItem('bookgenie_token')
+        if (token) {
+          // Record view interaction (non-blocking)
+          api.recordInteraction(book.id, 'view', 0.5, token).catch(err => {
+            console.error('Error recording view interaction:', err)
+          })
+        }
+      }
     }
   }, [book])
 
@@ -134,7 +145,25 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
         showNotification('Please login to download books', 'error')
         return
       }
+      
+      // Download the book
       await api.downloadBook(book.file_url, token)
+      
+      // Record reading session (default 5 minutes, user can adjust later)
+      try {
+        await api.recordReading(book.id, 5, token)
+      } catch (err) {
+        console.error('Error recording reading session:', err)
+        // Don't fail the download if recording fails
+      }
+      
+      // Also record download interaction
+      try {
+        await api.recordInteraction(book.id, 'download', 1.0, token)
+      } catch (err) {
+        console.error('Error recording interaction:', err)
+      }
+      
       showNotification('Download started', 'success')
       if (onDownload) {
         onDownload()

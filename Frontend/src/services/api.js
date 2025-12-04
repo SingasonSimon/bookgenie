@@ -415,5 +415,27 @@ export class BookGenieAPI {
       },
     })
   }
+
+  // Record reading session
+  async recordReading(bookId, durationMinutes = 5, token) {
+    return this.request(`/books/${bookId}/read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ duration_minutes: durationMinutes }),
+    })
+  }
+
+  // Record book interaction (view, download, etc.)
+  async recordInteraction(bookId, type = 'view', value = 1.0, token) {
+    return this.request(`/books/${bookId}/interact`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ type, value }),
+    })
+  }
 }
 

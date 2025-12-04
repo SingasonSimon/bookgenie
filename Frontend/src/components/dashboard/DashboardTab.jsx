@@ -37,6 +37,7 @@ export default function DashboardTab({ onNavigateToTab }) {
       if (isAdmin) {
         // Load admin analytics
         const analyticsData = await api.getAnalytics(token)
+        console.log('Admin Analytics Data:', analyticsData) // Debug log
         setAnalytics(analyticsData)
       } else {
         // Load student dashboard
@@ -47,6 +48,7 @@ export default function DashboardTab({ onNavigateToTab }) {
           }
         })
         const data = await response.json()
+        console.log('Student Dashboard Data:', data) // Debug log
         setStats(data.stats)
         setRecommendedBooks(data.recommended_books || [])
         setFavoriteGenres(data.favorite_genres || [])
@@ -433,93 +435,107 @@ export default function DashboardTab({ onNavigateToTab }) {
           </motion.div>
 
           {/* Charts Section */}
-          {analytics.timeSeries && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* User Growth Chart */}
-              {analytics.timeSeries.userGrowth && analytics.timeSeries.userGrowth.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <TrendingUp className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">User Growth (30 Days)</h2>
-                  </div>
-                  <LineChart 
-                    data={analytics.timeSeries.userGrowth} 
-                    dataKey="count" 
-                    name="New Users"
-                    color="#3b82f6"
-                  />
-                </motion.div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* User Growth Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="card"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <TrendingUp className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-display font-bold text-gray-900">User Growth (30 Days)</h2>
+              </div>
+              {analytics.timeSeries?.userGrowth && analytics.timeSeries.userGrowth.length > 0 ? (
+                <LineChart 
+                  data={analytics.timeSeries.userGrowth} 
+                  dataKey="count" 
+                  name="New Users"
+                  color="#3b82f6"
+                />
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-400">
+                  <p>No data available for the last 30 days</p>
+                </div>
               )}
+            </motion.div>
 
-              {/* Search Trends Chart */}
-              {analytics.timeSeries.searchTrends && analytics.timeSeries.searchTrends.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <Search className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">Search Trends (30 Days)</h2>
-                  </div>
-                  <LineChart 
-                    data={analytics.timeSeries.searchTrends} 
-                    dataKey="count" 
-                    name="Searches"
-                    color="#10b981"
-                  />
-                </motion.div>
+            {/* Search Trends Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="card"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Search className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-display font-bold text-gray-900">Search Trends (30 Days)</h2>
+              </div>
+              {analytics.timeSeries?.searchTrends && analytics.timeSeries.searchTrends.length > 0 ? (
+                <LineChart 
+                  data={analytics.timeSeries.searchTrends} 
+                  dataKey="count" 
+                  name="Searches"
+                  color="#10b981"
+                />
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-400">
+                  <p>No data available for the last 30 days</p>
+                </div>
               )}
+            </motion.div>
 
-              {/* Reading Trends Chart */}
-              {analytics.timeSeries.readingTrends && analytics.timeSeries.readingTrends.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <BookMarked className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">Reading Trends (30 Days)</h2>
-                  </div>
-                  <LineChart 
-                    data={analytics.timeSeries.readingTrends} 
-                    dataKey="count" 
-                    name="Reading Sessions"
-                    color="#f59e0b"
-                  />
-                </motion.div>
+            {/* Reading Trends Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="card"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <BookMarked className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-display font-bold text-gray-900">Reading Trends (30 Days)</h2>
+              </div>
+              {analytics.timeSeries?.readingTrends && analytics.timeSeries.readingTrends.length > 0 ? (
+                <LineChart 
+                  data={analytics.timeSeries.readingTrends} 
+                  dataKey="count" 
+                  name="Reading Sessions"
+                  color="#f59e0b"
+                />
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-400">
+                  <p>No data available for the last 30 days</p>
+                </div>
               )}
+            </motion.div>
 
-              {/* Genre Distribution Chart */}
-              {analytics.distributions?.genres && analytics.distributions.genres.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.9 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <BookOpen className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">Genre Distribution</h2>
-                  </div>
-                  <BarChart 
-                    data={analytics.distributions.genres} 
-                    dataKey="genre" 
-                    name="count"
-                    color="#8b5cf6"
-                  />
-                </motion.div>
+            {/* Genre Distribution Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+              className="card"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <BookOpen className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-display font-bold text-gray-900">Genre Distribution</h2>
+              </div>
+              {analytics.distributions?.genres && analytics.distributions.genres.length > 0 ? (
+                <BarChart 
+                  data={analytics.distributions.genres} 
+                  dataKey="genre" 
+                  name="count"
+                  color="#8b5cf6"
+                />
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-400">
+                  <p>No genre data available</p>
+                </div>
               )}
-            </div>
-          )}
+            </motion.div>
+          </div>
         </div>
       )}
 
@@ -567,49 +583,57 @@ export default function DashboardTab({ onNavigateToTab }) {
           </motion.div>
 
           {/* Premium Analytics Charts */}
-          {isPremium && premiumAnalytics && (
+          {isPremium && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Reading Timeline */}
-              {premiumAnalytics.readingTimeline && premiumAnalytics.readingTimeline.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <BookMarked className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">Reading Activity (30 Days)</h2>
-                  </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <BookMarked className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Reading Activity (30 Days)</h2>
+                </div>
+                {premiumAnalytics?.readingTimeline && premiumAnalytics.readingTimeline.length > 0 ? (
                   <LineChart 
                     data={premiumAnalytics.readingTimeline} 
                     dataKey="count" 
                     name="Reading Sessions"
                     color="#10b981"
                   />
-                </motion.div>
-              )}
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-gray-400">
+                    <p>No reading data available for the last 30 days</p>
+                  </div>
+                )}
+              </motion.div>
 
               {/* Search Timeline */}
-              {premiumAnalytics.searchTimeline && premiumAnalytics.searchTimeline.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="card"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <Search className="w-5 h-5 text-primary-600" />
-                    <h2 className="text-xl font-display font-bold text-gray-900">Search Activity (30 Days)</h2>
-                  </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <Search className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Search Activity (30 Days)</h2>
+                </div>
+                {premiumAnalytics?.searchTimeline && premiumAnalytics.searchTimeline.length > 0 ? (
                   <LineChart 
                     data={premiumAnalytics.searchTimeline} 
                     dataKey="count" 
                     name="Searches"
                     color="#3b82f6"
                   />
-                </motion.div>
-              )}
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-gray-400">
+                    <p>No search data available for the last 30 days</p>
+                  </div>
+                )}
+              </motion.div>
             </div>
           )}
 
