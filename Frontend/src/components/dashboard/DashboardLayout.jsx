@@ -150,30 +150,6 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
         </nav>
       </header>
 
-      {/* Mobile Tabs */}
-      <div className="lg:hidden glass-effect rounded-xl mb-4 sm:mb-6 px-2 sm:px-4 py-2 sm:py-3 overflow-x-auto sticky top-16 sm:top-20 z-20 max-w-7xl mx-auto">
-        <div className="flex gap-1.5 sm:gap-2">
-          {tabs.map(tab => {
-            const Icon = tab.icon
-            return (
-              <motion.button
-                key={tab.id}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onTabChange(tab.id)}
-                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap flex items-center gap-1.5 sm:gap-2 transition-all flex-shrink-0 ${
-                  activeTab === tab.id
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-700 bg-gray-100'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>{tab.label}</span>
-              </motion.button>
-            )
-          })}
-        </div>
-      </div>
-
       {/* Mobile Sidebar - Only for mobile */}
       <>
         {/* Mobile Overlay */}
