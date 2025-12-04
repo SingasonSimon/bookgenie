@@ -257,6 +257,42 @@ def init_db():
                   rating INTEGER,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
+    # Recommendation feedback table (for AI learning loop)
+    c.execute('''CREATE TABLE IF NOT EXISTS recommendation_feedback
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER,
+                  recommendation_id TEXT,
+                  recommendation_type TEXT,
+                  book_id INTEGER,
+                  position INTEGER,
+                  clicked BOOLEAN DEFAULT 0,
+                  rating INTEGER,
+                  feedback_type TEXT,
+                  query_context TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Recommendation performance metrics table
+    c.execute('''CREATE TABLE IF NOT EXISTS recommendation_metrics
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  recommendation_type TEXT,
+                  date DATE,
+                  total_shown INTEGER DEFAULT 0,
+                  total_clicked INTEGER DEFAULT 0,
+                  total_rated INTEGER DEFAULT 0,
+                  avg_rating REAL,
+                  click_through_rate REAL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Add indexes for recommendation feedback
+    try:
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_user ON recommendation_feedback(user_id)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_type ON recommendation_feedback(recommendation_type)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_date ON recommendation_feedback(created_at DESC)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_metrics_type_date ON recommendation_metrics(recommendation_type, date)')
+    except sqlite3.OperationalError as e:
+        print(f"Note: Some recommendation indexes may already exist: {e}")
+    
     # Reading history table
     c.execute('''CREATE TABLE IF NOT EXISTS reading_history
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -274,10 +310,41 @@ def init_db():
                   interaction_value REAL DEFAULT 1.0,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
-    # Add index for faster lookups
+    # Recommendation feedback table (for AI learning loop)
+    c.execute('''CREATE TABLE IF NOT EXISTS recommendation_feedback
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER,
+                  recommendation_id TEXT,
+                  recommendation_type TEXT,
+                  book_id INTEGER,
+                  position INTEGER,
+                  clicked BOOLEAN DEFAULT 0,
+                  rating INTEGER,
+                  feedback_type TEXT,
+                  query_context TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Recommendation performance metrics table
+    c.execute('''CREATE TABLE IF NOT EXISTS recommendation_metrics
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  recommendation_type TEXT,
+                  date DATE,
+                  total_shown INTEGER DEFAULT 0,
+                  total_clicked INTEGER DEFAULT 0,
+                  total_rated INTEGER DEFAULT 0,
+                  avg_rating REAL,
+                  click_through_rate REAL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Add indexes for faster lookups
     try:
         c.execute('CREATE INDEX IF NOT EXISTS idx_interactions_user_book ON user_book_interactions(user_id, book_id)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_interactions_type ON user_book_interactions(interaction_type)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_user ON recommendation_feedback(user_id)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_type ON recommendation_feedback(recommendation_type)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_feedback_date ON recommendation_feedback(created_at DESC)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_rec_metrics_type_date ON recommendation_metrics(recommendation_type, date)')
     except sqlite3.OperationalError:
         pass
     
@@ -667,6 +734,260 @@ class CollaborativeFiltering:
                for book_id, score in recommendations]
 
 collaborative_engine = CollaborativeFiltering()
+
+# AI Learning Loop Engine
+class AILearningLoop:
+    def __init__(self):
+        self.feedback_threshold = 10  # Minimum feedback before retraining
+        self.retrain_interval_hours = 24  # Retrain every 24 hours
+        
+    def record_recommendation_shown(self, conn, user_id, recommendation_type, book_id, position, query_context=None, recommendation_id=None):
+        """Record that a recommendation was shown to a user"""
+        c = conn.cursor()
+        
+        if recommendation_id is None:
+            recommendation_id = f"{user_id}_{recommendation_type}_{book_id}_{int(time.time())}"
+        
+        try:
+            c.execute('''INSERT INTO recommendation_feedback
+                         (user_id, recommendation_id, recommendation_type, book_id, position, query_context)
+                         VALUES (?, ?, ?, ?, ?, ?)''',
+                     (user_id, recommendation_id, recommendation_type, book_id, position, query_context))
+            conn.commit()
+            return recommendation_id
+        except Exception as e:
+            print(f"Error recording recommendation shown: {e}")
+            conn.rollback()
+            return None
+    
+    def record_recommendation_feedback(self, conn, recommendation_id, clicked=False, rating=None, feedback_type='click'):
+        """Record user feedback on a recommendation"""
+        c = conn.cursor()
+        
+        try:
+            c.execute('''UPDATE recommendation_feedback
+                         SET clicked=?, rating=?, feedback_type=?
+                         WHERE recommendation_id=?''',
+                     (1 if clicked else 0, rating, feedback_type, recommendation_id))
+            conn.commit()
+            
+            # Update metrics
+            self._update_metrics(conn, recommendation_id)
+            return True
+        except Exception as e:
+            print(f"Error recording recommendation feedback: {e}")
+            conn.rollback()
+            return False
+    
+    def _update_metrics(self, conn, recommendation_id):
+        """Update recommendation performance metrics"""
+        c = conn.cursor()
+        
+        # Get recommendation details
+        c.execute('''SELECT recommendation_type, DATE(created_at) as date, clicked, rating
+                     FROM recommendation_feedback
+                     WHERE recommendation_id=?''', (recommendation_id,))
+        rec = c.fetchone()
+        
+        if not rec:
+            return
+        
+        rec_type = rec['recommendation_type']
+        date = rec['date']
+        
+        # Get or create metrics record
+        c.execute('''SELECT * FROM recommendation_metrics
+                     WHERE recommendation_type=? AND date=?''', (rec_type, date))
+        metrics = c.fetchone()
+        
+        if metrics:
+            # Update existing metrics
+            new_total_shown = metrics['total_shown'] + 1
+            new_total_clicked = metrics['total_clicked'] + (1 if rec['clicked'] else 0)
+            new_total_rated = metrics['total_rated'] + (1 if rec['rating'] else 0)
+            
+            # Calculate new average rating
+            if rec['rating']:
+                if metrics['avg_rating']:
+                    new_avg_rating = ((metrics['avg_rating'] * metrics['total_rated']) + rec['rating']) / new_total_rated
+                else:
+                    new_avg_rating = rec['rating']
+            else:
+                new_avg_rating = metrics['avg_rating']
+            
+            new_ctr = (new_total_clicked / new_total_shown) * 100 if new_total_shown > 0 else 0
+            
+            c.execute('''UPDATE recommendation_metrics
+                         SET total_shown=?, total_clicked=?, total_rated=?, avg_rating=?, 
+                             click_through_rate=?, updated_at=CURRENT_TIMESTAMP
+                         WHERE recommendation_type=? AND date=?''',
+                     (new_total_shown, new_total_clicked, new_total_rated, new_avg_rating, new_ctr, rec_type, date))
+        else:
+            # Create new metrics record
+            total_shown = 1
+            total_clicked = 1 if rec['clicked'] else 0
+            total_rated = 1 if rec['rating'] else 0
+            avg_rating = rec['rating'] if rec['rating'] else None
+            ctr = (total_clicked / total_shown) * 100 if total_shown > 0 else 0
+            
+            c.execute('''INSERT INTO recommendation_metrics
+                         (recommendation_type, date, total_shown, total_clicked, total_rated, avg_rating, click_through_rate)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                     (rec_type, date, total_shown, total_clicked, total_rated, avg_rating, ctr))
+        
+        conn.commit()
+    
+    def get_recommendation_performance(self, conn, recommendation_type=None, days=30):
+        """Get recommendation performance metrics"""
+        c = conn.cursor()
+        
+        query = '''SELECT recommendation_type, date, total_shown, total_clicked, total_rated, 
+                          avg_rating, click_through_rate
+                   FROM recommendation_metrics
+                   WHERE date >= DATE('now', '-' || ? || ' days')'''
+        params = [days]
+        
+        if recommendation_type:
+            query += ' AND recommendation_type = ?'
+            params.append(recommendation_type)
+        
+        query += ' ORDER BY date DESC, recommendation_type'
+        
+        c.execute(query, params)
+        
+        metrics = []
+        for row in c.fetchall():
+            metrics.append({
+                'recommendation_type': row['recommendation_type'],
+                'date': row['date'],
+                'total_shown': row['total_shown'],
+                'total_clicked': row['total_clicked'],
+                'total_rated': row['total_rated'],
+                'avg_rating': round(row['avg_rating'], 2) if row['avg_rating'] else None,
+                'click_through_rate': round(row['click_through_rate'], 2) if row['click_through_rate'] else 0
+            })
+        
+        return metrics
+    
+    def analyze_feedback_patterns(self, conn, recommendation_type=None):
+        """Analyze feedback patterns to improve recommendations"""
+        c = conn.cursor()
+        
+        # Get feedback statistics
+        query = '''SELECT recommendation_type, 
+                          COUNT(*) as total_feedback,
+                          SUM(clicked) as total_clicks,
+                          AVG(rating) as avg_rating,
+                          COUNT(DISTINCT user_id) as unique_users
+                   FROM recommendation_feedback
+                   WHERE clicked = 1 OR rating IS NOT NULL'''
+        
+        params = []
+        if recommendation_type:
+            query += ' AND recommendation_type = ?'
+            params.append(recommendation_type)
+        
+        query += ' GROUP BY recommendation_type'
+        
+        c.execute(query, params)
+        
+        patterns = []
+        for row in c.fetchall():
+            patterns.append({
+                'recommendation_type': row['recommendation_type'],
+                'total_feedback': row['total_feedback'],
+                'total_clicks': row['total_clicks'],
+                'avg_rating': round(row['avg_rating'], 2) if row['avg_rating'] else None,
+                'unique_users': row['unique_users'],
+                'click_rate': round((row['total_clicks'] / row['total_feedback']) * 100, 2) if row['total_feedback'] > 0 else 0
+            })
+        
+        return patterns
+    
+    def get_user_feedback_summary(self, conn, user_id):
+        """Get feedback summary for a specific user"""
+        c = conn.cursor()
+        
+        c.execute('''SELECT recommendation_type,
+                            COUNT(*) as total_recommendations,
+                            SUM(clicked) as clicked_count,
+                            AVG(rating) as avg_rating
+                     FROM recommendation_feedback
+                     WHERE user_id=?
+                     GROUP BY recommendation_type''', (user_id,))
+        
+        summary = []
+        for row in c.fetchall():
+            summary.append({
+                'recommendation_type': row['recommendation_type'],
+                'total_recommendations': row['total_recommendations'],
+                'clicked_count': row['clicked_count'],
+                'avg_rating': round(row['avg_rating'], 2) if row['avg_rating'] else None
+            })
+        
+        return summary
+    
+    def should_retrain(self, conn, recommendation_type):
+        """Determine if model should be retrained based on feedback"""
+        c = conn.cursor()
+        
+        # Check if enough feedback collected
+        c.execute('''SELECT COUNT(*) as feedback_count
+                     FROM recommendation_feedback
+                     WHERE recommendation_type=? AND (clicked=1 OR rating IS NOT NULL)''',
+                 (recommendation_type,))
+        
+        result = c.fetchone()
+        feedback_count = result['feedback_count'] if result else 0
+        
+        return feedback_count >= self.feedback_threshold
+    
+    def get_improvement_suggestions(self, conn):
+        """Get suggestions for improving recommendations based on feedback"""
+        c = conn.cursor()
+        
+        suggestions = []
+        
+        # Check CTR by recommendation type
+        c.execute('''SELECT recommendation_type,
+                            AVG(click_through_rate) as avg_ctr,
+                            COUNT(*) as days_tracked
+                     FROM recommendation_metrics
+                     WHERE date >= DATE('now', '-30 days')
+                     GROUP BY recommendation_type
+                     ORDER BY avg_ctr ASC''')
+        
+        for row in c.fetchall():
+            if row['avg_ctr'] < 10:  # Less than 10% CTR
+                suggestions.append({
+                    'type': 'low_ctr',
+                    'recommendation_type': row['recommendation_type'],
+                    'current_ctr': round(row['avg_ctr'], 2),
+                    'suggestion': f"Consider adjusting weights or improving content matching for {row['recommendation_type']} recommendations"
+                })
+        
+        # Check rating trends
+        c.execute('''SELECT recommendation_type,
+                            AVG(avg_rating) as avg_rating,
+                            COUNT(*) as days_tracked
+                     FROM recommendation_metrics
+                     WHERE date >= DATE('now', '-30 days') AND avg_rating IS NOT NULL
+                     GROUP BY recommendation_type
+                     HAVING avg_rating < 3.0
+                     ORDER BY avg_rating ASC''')
+        
+        for row in c.fetchall():
+            suggestions.append({
+                'type': 'low_rating',
+                'recommendation_type': row['recommendation_type'],
+                'current_rating': round(row['avg_rating'], 2),
+                'suggestion': f"User ratings are low for {row['recommendation_type']} recommendations. Consider improving relevance."
+            })
+        
+        return suggestions
+
+# Initialize AI Learning Loop
+ai_learning_loop = AILearningLoop()
 
 # Elasticsearch Service (optional)
 class ElasticsearchService:
@@ -2882,6 +3203,84 @@ def submit_feedback():
     clear_cache('dashboard_')
     
     return jsonify({'success': True, 'message': 'Feedback submitted successfully'})
+
+# ============================================
+# AI LEARNING LOOP - RECOMMENDATION TRACKING
+# ============================================
+
+@app.route('/api/recommendations/<recommendation_id>/feedback', methods=['POST'])
+@require_auth
+def submit_recommendation_feedback(recommendation_id):
+    """Submit feedback on a specific recommendation"""
+    data = request.json
+    clicked = data.get('clicked', False)
+    rating = data.get('rating')
+    feedback_type = data.get('feedback_type', 'click')
+    
+    conn = get_db()
+    
+    try:
+        success = ai_learning_loop.record_recommendation_feedback(
+            conn, recommendation_id, clicked=clicked, rating=rating, feedback_type=feedback_type
+        )
+        conn.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Recommendation feedback recorded'})
+        else:
+            return jsonify({'error': 'Failed to record feedback'}), 500
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/recommendations/performance', methods=['GET'])
+@require_admin
+def get_recommendation_performance():
+    """Get recommendation performance metrics"""
+    recommendation_type = request.args.get('type')
+    days = request.args.get('days', 30, type=int)
+    
+    conn = get_db()
+    metrics = ai_learning_loop.get_recommendation_performance(conn, recommendation_type, days)
+    conn.close()
+    
+    return jsonify({
+        'metrics': metrics,
+        'period_days': days,
+        'recommendation_type': recommendation_type or 'all'
+    })
+
+@app.route('/api/admin/recommendations/patterns', methods=['GET'])
+@require_admin
+def get_feedback_patterns():
+    """Analyze feedback patterns"""
+    recommendation_type = request.args.get('type')
+    
+    conn = get_db()
+    patterns = ai_learning_loop.analyze_feedback_patterns(conn, recommendation_type)
+    suggestions = ai_learning_loop.get_improvement_suggestions(conn)
+    conn.close()
+    
+    return jsonify({
+        'patterns': patterns,
+        'suggestions': suggestions,
+        'recommendation_type': recommendation_type or 'all'
+    })
+
+@app.route('/api/user/recommendations/feedback-summary', methods=['GET'])
+@require_auth
+def get_user_feedback_summary():
+    """Get feedback summary for current user"""
+    user_id = request.current_user['user_id']
+    
+    conn = get_db()
+    summary = ai_learning_loop.get_user_feedback_summary(conn, user_id)
+    conn.close()
+    
+    return jsonify({
+        'summary': summary,
+        'user_id': user_id
+    })
 
 # ============================================
 # HEALTH CHECK
