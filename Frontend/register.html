@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - BookGenie</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .register-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .role-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .role-option {
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .role-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .role-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .role-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .role-description {
+            font-size: 0.8em;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .subscription-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .subscription-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .subscription-features {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .avatar-selection {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .avatar-option {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-bottom: 20px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fcc;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #363;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #cfc;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .password-strength {
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        .strength-weak { color: #f44336; }
+        .strength-medium { color: #ff9800; }
+        .strength-strong { color: #4caf50; }
+
+        @media (max-width: 480px) {
+            .register-container {
+                padding: 30px 20px;
+            }
+            
+            .logo h1 {
+                font-size: 2em;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .role-selection {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="logo">
+            <h1>BookGenie</h1>
+            <p>Create Your Account</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <form id="registerForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" placeholder="Enter your first name" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" placeholder="Enter your last name" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Create a password" required>
+                <div id="passwordStrength" class="password-strength"></div>
+            </div>
+
+            <div class="form-group">
+                <label>Account Type</label>
+                <div class="role-selection">
+                    <div class="role-option selected" data-role="student">
+                        <div class="role-icon">Student</div>
+                        <div class="role-name">Student</div>
+                        <div class="role-description">Access books, search, and track reading progress</div>
+                    </div>
+                    <div class="role-option" data-role="admin">
+                        <div class="role-icon">Admin</div>
+                        <div class="role-name">Administrator</div>
+                        <div class="role-description">Manage books, users, and system analytics</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subscription-info">
+                <div class="subscription-title">Free Subscription Included</div>
+                <div class="subscription-features">
+                    • Access to free books<br>
+                    • AI-powered search<br>
+                    • Reading progress tracking<br>
+                    • Basic recommendations
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="academicLevel">Academic Level</label>
+                <select id="academicLevel" required>
+                    <option value="">Select your level</option>
+                    <option value="high_school">High School</option>
+                    <option value="undergraduate">Undergraduate</option>
+                    <option value="postgraduate">Postgraduate</option>
+                    <option value="phd">PhD Research</option>
+                    <option value="faculty">Faculty</option>
+                    <option value="researcher">Researcher</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="department">Department/Faculty</label>
+                <input type="text" id="department" placeholder="e.g., Computer Science" required>
+            </div>
+
+            <div class="form-group">
+                <label>Choose Avatar</label>
+                <div class="avatar-selection">
+                    <div class="avatar-option selected" data-avatar="user">User</div>
+                    <div class="avatar-option" data-avatar="student">Student</div>
+                    <div class="avatar-option" data-avatar="student-f">Student</div>
+                    <div class="avatar-option" data-avatar="teacher">Teacher</div>
+                    <div class="avatar-option" data-avatar="teacher-f">Teacher</div>
+                    <div class="avatar-option" data-avatar="smile">Smile</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary">
+                <span class="btn-text">Create Account</span>
+                <div class="loading" id="registerLoading">
+                    <div class="spinner"></div> Creating account...
+                </div>
+            </button>
+        </form>
+
+        <button class="btn-secondary" onclick="window.location.href='login.html'">
+            Back to Login
+        </button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        let selectedRole = 'student';
+        let selectedAvatar = 'user';
+
+        // Show message
+        function showMessage(message, type = 'error') {
+            const element = type === 'error' ? 
+                document.getElementById('errorMessage') : 
+                document.getElementById('successMessage');
+            
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            if (type === 'error') {
+                document.getElementById('successMessage').style.display = 'none';
+            } else {
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+        }
+
+        // Hide messages
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // Check password strength
+        function checkPasswordStrength(password) {
+            const strength = document.getElementById('passwordStrength');
+            let score = 0;
+            
+            if (password.length >= 8) score++;
+            if (/[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[^A-Za-z0-9]/.test(password)) score++;
+            
+            if (password.length === 0) {
+                strength.textContent = '';
+                return;
+            }
+            
+            if (score <= 1) {
+                strength.textContent = 'Weak password';
+                strength.className = 'password-strength strength-weak';
+            } else if (score <= 3) {
+                strength.textContent = 'Medium strength';
+                strength.className = 'password-strength strength-medium';
+            } else {
+                strength.textContent = 'Strong password';
+                strength.className = 'password-strength strength-strong';
+            }
+        }
+
+        // Handle role selection
+        document.querySelectorAll('.role-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.role-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+                selectedRole = option.getAttribute('data-role');
+                
+                // Update subscription info based on role
+                const subscriptionInfo = document.querySelector('.subscription-info');
+                if (selectedRole === 'admin') {
+                    subscriptionInfo.innerHTML = `
+                        <div class="subscription-title">Administrator Access</div>
+                        <div class="subscription-features">
+                            • Full system access<br>
+                            • User management<br>
+                            • Book upload & management<br>
+                            • Advanced analytics<br>
+                            • Category management
+                        </div>
+                    `;
+                } else {
+                    subscriptionInfo.innerHTML = `
+                        <div class="subscription-title">Free Subscription Included</div>
+                        <div class="subscription-features">
+                            • Access to free books<br>
+                            • AI-powered search<br>
+                            • Reading progress tracking<br>
+                            • Basic recommendations
+                        </div>
+                    `;
+                }
+            });
+        });
+
+        // Handle avatar selection
+        document.querySelectorAll('.avatar-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+                selectedAvatar = option.getAttribute('data-avatar');
+            });
+        });
+
+        // Handle registration
+        async function handleRegistration(userData) {
+            const registerLoading = document.getElementById('registerLoading');
+            const btnText = document.querySelector('.btn-text');
+            
+            registerLoading.style.display = 'inline-block';
+            btnText.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store token and user data
+                    localStorage.setItem('bookgenie_token', data.token);
+                    localStorage.setItem('bookgenie_user', JSON.stringify(data.user));
+                    
+                    showMessage('Account created successfully! Redirecting...', 'success');
+                    
+                    // Redirect to appropriate dashboard based on role
+                    setTimeout(() => {
+                        if (data.user.role === 'admin') {
+                            window.location.href = 'dashboard.html?tab=admin';
+                        } else {
+                            window.location.href = 'dashboard.html?tab=dashboard';
+                        }
+                    }, 1500);
+                } else {
+                    showMessage(data.error || 'Registration failed. Please try again.');
+                }
+            } catch (error) {
+                showMessage('Registration failed. Please check if the server is running.');
+                console.error('Registration error:', error);
+            } finally {
+                registerLoading.style.display = 'none';
+                btnText.style.display = 'inline';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('password').addEventListener('input', (e) => {
+            checkPasswordStrength(e.target.value);
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessages();
+            
+            const formData = {
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value.trim(),
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                academicLevel: document.getElementById('academicLevel').value,
+                department: document.getElementById('department').value.trim(),
+                avatar: selectedAvatar,
+                role: selectedRole
+            };
+            
+            // Validate required fields
+            for (const [key, value] of Object.entries(formData)) {
+                if (!value && key !== 'avatar') {
+                    showMessage(`Please fill in the ${key.replace(/([A-Z])/g, ' $1').toLowerCase()}.`);
+                    return;
+                }
+            }
+            
+            if (formData.password.length < 6) {
+                showMessage('Password must be at least 6 characters long.');
+                return;
+            }
+            
+            await handleRegistration(formData);
+        });
+
+        // Check if user is already logged in
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('bookgenie_token');
+            if (token) {
+                // Redirect to dashboard if already logged in
+                window.location.href = 'dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html>

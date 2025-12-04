@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookGenie - AI Academic Assistant</title>
+    <style>
+        /* Base styles from index.html */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Navigation */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-brand h1 {
+            margin: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.8em;
+        }
+
+        .nav-brand span {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .nav-auth {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        /* Search Section */
+        .search-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .quick-searches {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .quick-search {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .quick-search:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            background: white;
+        }
+
+        /* Books Grid */
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .book-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .book-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .book-header {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .book-cover {
+            font-size: 3em;
+            flex-shrink: 0;
+        }
+
+        .book-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .book-author {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .book-badges {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge.genre {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .badge.level {
+            background: rgba(118, 75, 162, 0.1);
+            color: #764ba2;
+        }
+
+        .badge.relevance {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+        }
+
+        .book-abstract {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .book-tags {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .book-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .feedback-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feedback-btn {
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .feedback-btn:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal */
+        .modal {
+            display: none; /* Changed from default to none */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            align-items: center; /* Center content vertically */
+            justify-content: center; /* Center content horizontally */
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 0; /* Changed from 0 to 40px below */
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2); /* Added from login/register */
+            animation: slideUp 0.6s ease-out; /* Added from login/register */
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .modal-cover {
+            font-size: 4em;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .full-abstract {
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .tags-section {
+            margin-bottom: 25px;
+        }
+
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .similar-book {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .similar-book:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(5px);
+        }
+
+        .similar-cover {
+            font-size: 2em;
+            flex-shrink: 0;
+        }
+
+        .similar-info h5 {
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .similar-info p {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .relevance {
+            font-size: 0.7em;
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .modal-actions {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-radius: 0 0 20px 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Auth Modal (originally from index.html) */
+        .auth-divider {
+            text-align: center;
+            margin: 2rem 0;
+            color: #666;
+            position: relative;
+        }
+
+        .auth-divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e1e5e9;
+        }
+
+        .auth-divider span {
+            background: white;
+            padding: 0 1rem;
+        }
+
+        /* Results */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        /* Loading */
+        .loading {
+            display: none; /* Changed from default to none */
+            text-align: center;
+            margin: 10px 0; /* Added from login/register */
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px; /* Changed from 40px */
+            height: 20px; /* Changed from 40px */
+            animation: spin 1s linear infinite;
+            display: inline-block; /* Added from login/register */
+            margin-right: 10px; /* Added from login/register */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Search History */
+        .search-history {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item .query {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .history-item .time {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .books-grid,
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .modal-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .modal-actions {
+                flex-direction: column;
+            }
+            
+            .quick-searches {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .stats {
+                gap: 15px;
+            }
+            
+            .stat-number {
+                font-size: 1.5em;
+            }
+            
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+
+        /* Styles from login.html / register.html */
+        .auth-modal-content { /* Used instead of .login-container / .register-container */
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px; /* For login */
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.6s ease-out;
+            margin: 5% auto;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .register-modal-content { /* Specific max-width for register */
+            max-width: 500px;
+        }
+
+        .logo-auth { /* For logo in auth modals */
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-auth h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .logo-auth p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row { /* From register.html */
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .btn-auth-primary { /* Primary button specific to auth forms */
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-bottom: 20px;
+        }
+
+        .btn-auth-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-auth-secondary { /* Secondary button specific to auth forms */
+            width: 100%;
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-auth-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fcc;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #363;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #cfc;
+            display: none;
+        }
+
+        .btn-auth-loading { /* For loading spinner in auth buttons */
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .btn-auth-spinner { /* Spinner specific to auth buttons */
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .password-strength { /* From register.html */
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        .strength-weak { color: #f44336; }
+        .strength-medium { color: #ff9800; }
+        .strength-strong { color: #4caf50; }
+
+        .role-selection { /* From register.html */
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .role-option {
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .role-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .role-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .role-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .role-description {
+            font-size: 0.8em;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .subscription-info { /* From register.html */
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .subscription-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .subscription-features {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .avatar-selection { /* From register.html */
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .avatar-option {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        @media (max-width: 480px) {
+            .auth-modal-content {
+                padding: 30px 20px;
+            }
+            .logo-auth h1 {
+                font-size: 2em;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            .role-selection {
+                grid-template-columns: 1fr;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>BookGenie</h1>
+                <span>AI-Powered Academic Library</span>
+            </div>
+            <div class="nav-auth" id="navAuth">
+                <span id="userGreeting">Welcome, Guest</span>
+                <button id="loginBtn" class="btn-primary">Login</button>
+                <button id="adminBtn" class="btn-secondary" style="display: none;">Admin Dashboard</button>
+                <button id="logoutBtn" class="btn-outline" style="display: none;">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Login Modal (NEW DESIGN) -->
+        <div id="loginModal" class="modal">
+            <div class="auth-modal-content">
+                <span class="close">Close</span>
+                <div class="logo-auth">
+                    <h1>BookGenie</h1>
+                    <p>AI-Powered Academic Library</p>
+                </div>
+        
+                <div id="loginErrorMessage" class="error-message"></div>
+                <div id="loginSuccessMessage" class="success-message"></div>
+        
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email Address</label>
+                        <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                    </div>
+        
+                    <button type="submit" class="btn-auth-primary">
+                        <span class="btn-text">Sign In</span>
+                        <div class="btn-auth-loading" id="loginLoading">
+                            <div class="btn-auth-spinner"></div> Signing in...
+                        </div>
+                    </button>
+                </form>
+        
+                <div class="auth-divider">
+                    <span>New to BookGenie?</span>
+                </div>
+        
+                <button class="btn-auth-secondary" id="showRegisterModalBtn">
+                    Create Account
+                </button>
+        
+                <div class="features">
+                    <div class="feature">
+                        <span class="feature-icon">Search</span>
+                        <span>AI-Powered Semantic Search</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">Books</span>
+                        <span>Personalized Recommendations</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">Target</span>
+                        <span>Smart Academic Resources</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Modal (NEW DESIGN) -->
+        <div id="registerModal" class="modal">
+            <div class="auth-modal-content register-modal-content">
+                <span class="close">Close</span>
+                <div class="logo-auth">
+                    <h1>BookGenie</h1>
+                    <p>Create Your Account</p>
+                </div>
+        
+                <div id="registerErrorMessage" class="error-message"></div>
+                <div id="registerSuccessMessage" class="success-message"></div>
+        
+                <form id="registerForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="registerFirstName">First Name</label>
+                            <input type="text" id="registerFirstName" placeholder="Enter your first name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerLastName">Last Name</label>
+                            <input type="text" id="registerLastName" placeholder="Enter your last name" required>
+                        </div>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="registerEmail">Email Address</label>
+                        <input type="email" id="registerEmail" placeholder="Enter your email" required>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" placeholder="Create a password" required>
+                        <div id="passwordStrength" class="password-strength"></div>
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Account Type</label>
+                        <div class="role-selection" id="registerRoleSelection">
+                            <div class="role-option selected" data-role="student">
+                                <div class="role-icon">Student</div>
+                                <div class="role-name">Student</div>
+                                <div class="role-description">Access books, search, and track reading progress</div>
+                            </div>
+                            <div class="role-option" data-role="admin">
+                                <div class="role-icon">Admin</div>
+                                <div class="role-name">Administrator</div>
+                                <div class="role-description">Manage books, users, and system analytics</div>
+                            </div>
+                        </div>
+                    </div>
+        
+                    <div class="subscription-info">
+                        <div class="subscription-title">Free Subscription Included</div>
+                        <div class="subscription-features" id="subscriptionFeatures">
+                            • Access to free books<br>
+                            • AI-powered search<br>
+                            • Reading progress tracking<br>
+                            • Basic recommendations
+                        </div>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="registerAcademicLevel">Academic Level</label>
+                        <select id="registerAcademicLevel" required>
+                            <option value="">Select your level</option>
+                            <option value="undergraduate">Undergraduate</option>
+                            <option value="postgraduate">Postgraduate</option>
+                            <option value="phd">PhD Research</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="researcher">Researcher</option>
+                        </select>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="registerDepartment">Department/Faculty</label>
+                        <input type="text" id="registerDepartment" placeholder="e.g., Computer Science" required>
+                    </div>
+        
+                    <div class="form-group">
+                        <label>Choose Avatar</label>
+                        <div class="avatar-selection" id="registerAvatarSelection">
+                            <div class="avatar-option selected" data-avatar="user">User</div>
+                            <div class="avatar-option" data-avatar="student">Student</div>
+                            <div class="avatar-option" data-avatar="student-f">Student</div>
+                            <div class="avatar-option" data-avatar="teacher">Teacher</div>
+                            <div class="avatar-option" data-avatar="teacher-f">Teacher</div>
+                            <div class="avatar-option" data-avatar="smile">Smile</div>
+                        </div>
+                    </div>
+        
+                    <button type="submit" class="btn-auth-primary">
+                        <span class="btn-text">Create Account</span>
+                        <div class="btn-auth-loading" id="registerLoading">
+                            <div class="btn-auth-spinner"></div> Creating account...
+                        </div>
+                    </button>
+                </form>
+        
+                <button class="btn-auth-secondary" id="showLoginModalBtn">
+                    Back to Login
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Header -->
+        <header class="header">
+            <div class="stats" id="stats">
+                <div class="stat">
+                    <span class="stat-number" id="totalBooks">0</span>
+                    <span class="stat-label">Total Books</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="aiAccuracy">85%</span>
+                    <span class="stat-label">AI Accuracy</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <form id="searchForm">
+                <div class="search-box">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Ask a question like: 'How does climate change affect agriculture in Africa?'"
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="btn-primary">Find Resources</button>
+                </div>
+            </form>
+
+            <div class="quick-searches">
+                <span>Try asking:</span>
+                <button class="quick-search" data-query="machine learning algorithms">machine learning</button>
+                <button class="quick-search" data-query="climate change agriculture">climate change</button>
+                <button class="quick-search" data-query="quantum physics research">quantum physics</button>
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Genre:</label>
+                    <select id="filterGenre">
+                        <option value="">All Genres</option>
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Environmental Science">Environmental Science</option>
+                        <option value="Economics">Economics</option>
+                        <option value="Physics">Physics</option>
+                        <option value="Social Sciences">Social Sciences</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Academic Level:</label>
+                    <select id="filterLevel">
+                        <option value="">All Levels</option>
+                        <option value="undergraduate">Undergraduate</option>
+                        <option value="postgraduate">Postgraduate</option>
+                        <option value="phd">PhD Research</option>
+                    </select>
+                </div>
+                <button class="btn-secondary" id="clearFilters">Clear Filters</button>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Search Results -->
+            <div id="searchResults" style="display: none;">
+                <!-- Results populated by JavaScript -->
+            </div>
+
+            <!-- Books Grid -->
+            <div id="booksContainer" class="books-grid">
+                <!-- Books populated by JavaScript -->
+            </div>
+        </main>
+
+        <!-- Search History -->
+        <section class="search-history" id="searchHistorySection" style="display: none;">
+            <h3>Recent Searches</h3>
+            <div id="searchHistory">
+                <!-- History populated by JavaScript -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Book Details Modal -->
+    <div id="bookModal" class="modal">
+        <!-- Modal content populated by JavaScript -->
+    </div>
+
+    <script>
+        class BookGenieApp {
+            constructor() {
+                this.apiBase = 'http://localhost:5000/api';
+                this.currentUser = null;
+                this.currentBooks = [];
+                this.searchHistory = [];
+                this.selectedRegisterRole = 'student'; // Default for register
+                this.selectedRegisterAvatar = 'user'; // Default for register
+                this.init();
+            }
+
+            async init() {
+                await this.checkAuth();
+                this.setupEventListeners();
+                await this.loadBooks();
+                this.updateStats();
+            }
+
+            async checkAuth() {
+                try {
+                    const response = await fetch(`${this.apiBase}/user`, {
+                        credentials: 'include'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.user) {
+                        this.currentUser = data.user;
+                        this.updateAuthUI();
+                    }
+                } catch (error) {
+                    console.log('Backend not reachable. Please start the server.');
+                    this.showNotification('Backend server not running. Please start the Flask server.', 'error');
+                }
+            }
+
+            async login(email, password) {
+                this.showLoadingIndicator('loginLoading', 'loginForm');
+                try {
+                    const response = await fetch(`${this.apiBase}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.currentUser = data.user;
+                        this.updateAuthUI();
+                        this.hideModal('loginModal');
+                        this.showNotification('Login successful!', 'success');
+                        return true;
+                    } else {
+                        this.showAuthMessage('loginErrorMessage', data.error, 'error');
+                        return false;
+                    }
+                } catch (error) {
+                    this.showAuthMessage('loginErrorMessage', 'Login failed. Please check if backend is running.', 'error');
+                    return false;
+                } finally {
+                    this.hideLoadingIndicator('loginLoading', 'loginForm');
+                }
+            }
+
+            async signup(userData) {
+                this.showLoadingIndicator('registerLoading', 'registerForm');
+                try {
+                    const response = await fetch(`${this.apiBase}/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(userData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.currentUser = data.user;
+                        this.updateAuthUI();
+                        this.hideModal('registerModal'); // Hide register modal after signup
+                        this.showNotification('Account created successfully!', 'success');
+                        return true;
+                    } else {
+                        this.showAuthMessage('registerErrorMessage', data.error, 'error');
+                        return false;
+                    }
+                } catch (error) {
+                    this.showAuthMessage('registerErrorMessage', 'Signup failed. Please check if backend is running.', 'error');
+                    return false;
+                } finally {
+                    this.hideLoadingIndicator('registerLoading', 'registerForm');
+                }
+            }
+
+            async logout() {
+                try {
+                    await fetch(`${this.apiBase}/logout`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                    
+                    this.currentUser = null;
+                    this.updateAuthUI();
+                    this.showNotification('Logged out successfully', 'success');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+
+            updateAuthUI() {
+                const userGreeting = document.getElementById('userGreeting');
+                const loginBtn = document.getElementById('loginBtn');
+                const logoutBtn = document.getElementById('logoutBtn');
+                const adminBtn = document.getElementById('adminBtn');
+
+                if (this.currentUser) {
+                    userGreeting.textContent = `Welcome, ${this.currentUser.email}`;
+                    loginBtn.style.display = 'none';
+                    logoutBtn.style.display = 'block';
+                    
+                    if (this.currentUser.role === 'admin') {
+                        adminBtn.style.display = 'block';
+                    } else {
+                        adminBtn.style.display = 'none';
+                    }
+                    
+                    document.getElementById('searchHistorySection').style.display = 'block';
+                } else {
+                    userGreeting.textContent = 'Welcome, Guest';
+                    loginBtn.style.display = 'block';
+                    logoutBtn.style.display = 'none';
+                    adminBtn.style.display = 'none';
+                    document.getElementById('searchHistorySection').style.display = 'none';
+                }
+            }
+
+            async loadBooks(filters = {}) {
+                try {
+                    const params = new URLSearchParams();
+                    if (filters.genre) params.append('genre', filters.genre);
+                    if (filters.academic_level) params.append('academic_level', filters.academic_level);
+
+                    const response = await fetch(`${this.apiBase}/books?${params}`);
+                    this.currentBooks = await response.json();
+                    this.displayBooks(this.currentBooks);
+                    this.updateStats();
+                } catch (error) {
+                    console.error('Error loading books:', error);
+                    this.showNotification('Failed to load books. Please start the backend server.', 'error');
+                }
+            }
+
+            async handleSearch(query) {
+                if (!query.trim()) return;
+
+                this.showLoading();
+
+                try {
+                    const response = await fetch(`${this.apiBase}/search`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ query, top_k: 10 })
+                    });
+
+                    const data = await response.json();
+                    this.displaySearchResults(data.results, query);
+                    
+                    // Add to search history
+                    this.searchHistory.unshift({
+                        query,
+                        timestamp: new Date().toLocaleTimeString(),
+                        results: data.results.length
+                    });
+                    this.updateSearchHistory();
+                    
+                } catch (error) {
+                    console.error('Search error:', error);
+                    this.showNotification('Search failed. Please check backend connection.', 'error');
+                }
+            }
+
+            async submitFeedback(bookId, isHelpful, query = '') {
+                if (!this.currentUser) {
+                    this.showNotification('Please login to provide feedback', 'error');
+                    return;
+                }
+
+                try {
+                    await fetch(`${this.apiBase}/feedback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ book_id: bookId, is_helpful: isHelpful, query })
+                    });
+
+                    this.showNotification('Feedback submitted! Thank you for helping improve BookGenie.', 'success');
+                } catch (error) {
+                    console.error('Feedback error:', error);
+                    this.showNotification('Failed to submit feedback', 'error');
+                }
+            }
+
+            displayBooks(books) {
+                const container = document.getElementById('booksContainer');
+                const resultsContainer = document.getElementById('searchResults');
+                
+                container.innerHTML = books.map(book => this.createBookCard(book)).join('');
+                container.style.display = 'grid';
+                resultsContainer.style.display = 'none';
+                
+                this.addBookInteractions();
+            }
+
+            displaySearchResults(results, query) {
+                const resultsContainer = document.getElementById('searchResults');
+                const booksContainer = document.getElementById('booksContainer');
+                
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <h3>No results found for "${query}"</h3>
+                            <p>Try different keywords or browse all books.</p>
+                        </div>
+                    `;
+                    booksContainer.style.display = 'none';
+                    return;
+                }
+                
+                resultsContainer.innerHTML = `
+                    <h3>Found ${results.length} results for "${query}"</h3>
+                    <div class="results-grid">
+                        ${results.map(result => this.createBookCard(result.book, result.relevance_percentage)).join('')}
+                    </div>
+                `;
+                
+                booksContainer.style.display = 'none';
+                resultsContainer.style.display = 'block';
+                
+                this.addBookInteractions();
+            }
+
+            createBookCard(book, relevance = null) {
+                return `
+                    <div class="book-card" data-book-id="${book.id}">
+                        <div class="book-header">
+                            <div class="book-cover">Book</div>
+                            <div class="book-meta">
+                                <h3 class="book-title">${book.title}</h3>
+                                <p class="book-author">by ${book.author}</p>
+                                <div class="book-badges">
+                                    <span class="badge genre">${book.genre}</span>
+                                    <span class="badge level">${book.academic_level}</span>
+                                    ${relevance ? `<span class="badge relevance">${relevance}% match</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <p class="book-abstract">${book.abstract}</p>
+                        <div class="book-tags">
+                            ${book.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                        <div class="book-actions">
+                            <button class="btn-secondary" onclick="app.showRecommendations(${book.id})">
+                                Similar Books
+                            </button>
+                            <button class="btn-primary" onclick="app.simulateDownload(${book.id})">
+                                Download
+                            </button>
+                        </div>
+                        <div class="feedback-section">
+                            <span>Was this helpful?</span>
+                            <button class="feedback-btn like" onclick="app.submitFeedback(${book.id}, true)">Like</button>
+                            <button class="feedback-btn dislike" onclick="app.submitFeedback(${book.id}, false)">Dislike</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            addBookInteractions() {
+                document.querySelectorAll('.book-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        if (!e.target.closest('button')) {
+                            const bookId = parseInt(card.dataset.bookId);
+                            this.showBookDetails(bookId);
+                        }
+                    });
+                });
+            }
+
+            async showBookDetails(bookId) {
+                const book = this.currentBooks.find(b => b.id === bookId);
+                if (!book) return;
+
+                try {
+                    const response = await fetch(`${this.apiBase}/books/${bookId}/recommendations`);
+                    const similarBooks = await response.json();
+
+                    const modal = document.getElementById('bookModal');
+                    modal.innerHTML = `
+                        <div class="modal-content">
+                            <span class="close">Close</span>
+                            <div class="modal-header">
+                                <div class="modal-cover">Book</div>
+                                <div class="modal-title">
+                                    <h2>${book.title}</h2>
+                                    <p class="author">by ${book.author}</p>
+                                    <div class="modal-badges">
+                                        <span class="badge">${book.genre}</span>
+                                        <span class="badge">${book.academic_level}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-body">
+                                <h4>Abstract</h4>
+                                <p class="full-abstract">${book.abstract}</p>
+                                
+                                <div class="tags-section">
+                                    <h4>Keywords</h4>
+                                    <div class="tags">${book.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+                                </div>
+                                
+                                ${similarBooks.length > 0 ? `
+                                <div class="similar-books">
+                                    <h4>Readers Also Liked</h4>
+                                    <div class="similar-grid">
+                                        ${similarBooks.map(similar => `
+                                            <div class="similar-book" onclick="app.showBookDetails(${similar.book.id})">
+                                                <div class="similar-cover">Book</div>
+                                                <div class="similar-info">
+                                                    <h5>${similar.book.title}</h5>
+                                                    <p>${similar.book.author}</p>
+                                                    <span class="relevance">${similar.relevance_percentage}% match</span>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                            <div class="modal-actions">
+                                <button class="btn-primary" onclick="app.simulateDownload(${book.id})">
+                                    Download PDF
+                                </button>
+                                <button class="btn-secondary" onclick="app.showRecommendations(${book.id})">
+                                    Find Similar Books
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    modal.style.display = 'block';
+                    
+                    modal.querySelector('.close').addEventListener('click', () => {
+                        modal.style.display = 'none';
+                    });
+                    
+                    window.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Error loading book details:', error);
+                }
+            }
+
+            async showRecommendations(bookId) {
+                const book = this.currentBooks.find(b => b.id === bookId);
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/books/${bookId}/recommendations`);
+                    const recommendations = await response.json();
+                    
+                    const resultsContainer = document.getElementById('searchResults');
+                    resultsContainer.innerHTML = `
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                            <h3>Books similar to "${book.title}"</h3>
+                            <button class="btn-secondary" onclick="app.displayBooks(app.currentBooks)">Back to All Books</button>
+                        </div>
+                        <div class="results-grid">
+                            ${recommendations.map(result => this.createBookCard(result.book, result.relevance_percentage)).join('')}
+                        </div>
+                    `;
+                    
+                    document.getElementById('booksContainer').style.display = 'none';
+                    resultsContainer.style.display = 'block';
+                    this.addBookInteractions();
+                    
+                } catch (error) {
+                    console.error('Error loading recommendations:', error);
+                }
+            }
+
+            updateStats() {
+                const totalBooks = document.getElementById('totalBooks');
+                const aiAccuracy = document.getElementById('aiAccuracy');
+                
+                totalBooks.textContent = this.currentBooks.length;
+                // In a real app, you'd fetch this from the backend
+                aiAccuracy.textContent = '85%';
+            }
+
+            updateSearchHistory() {
+                const historyElement = document.getElementById('searchHistory');
+                const recentSearches = this.searchHistory.slice(0, 5);
+                
+                historyElement.innerHTML = recentSearches.map(search => `
+                    <div class="history-item">
+                        <span class="query">"${search.query}"</span>
+                        <span class="time">${search.timestamp} (${search.results} results)</span>
+                    </div>
+                `).join('');
+            }
+
+            simulateDownload(bookId) {
+                const book = this.currentBooks.find(b => b.id === bookId);
+                this.showNotification(`Download started: "${book.title}"\n\nThis is a simulation. In a real application, this would download the PDF.`);
+            }
+
+            showLoading() {
+                const resultsContainer = document.getElementById('searchResults');
+                resultsContainer.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>BookGenie is searching through our academic collection...</p>
+                    </div>
+                `;
+                resultsContainer.style.display = 'block';
+            }
+
+            showModal(modalId) {
+                document.getElementById(modalId).style.display = 'flex'; // Changed to flex for centering
+            }
+
+            hideModal(modalId) {
+                document.getElementById(modalId).style.display = 'none';
+            }
+
+            // New auth message display function
+            showAuthMessage(elementId, message, type = 'error') {
+                const element = document.getElementById(elementId);
+                const otherElementId = type === 'error' ? elementId.replace('Error', 'Success') : elementId.replace('Success', 'Error');
+                const otherElement = document.getElementById(otherElementId);
+
+                element.textContent = message;
+                element.style.display = 'block';
+                if (otherElement) otherElement.style.display = 'none';
+            }
+
+            // New loading indicator display function for auth buttons
+            showLoadingIndicator(loadingId, formId) {
+                document.getElementById(loadingId).style.display = 'inline-block';
+                document.querySelector(`#${formId} .btn-text`).style.display = 'none';
+            }
+
+            hideLoadingIndicator(loadingId, formId) {
+                document.getElementById(loadingId).style.display = 'none';
+                document.querySelector(`#${formId} .btn-text`).style.display = 'inline';
+            }
+
+
+            // New password strength checker
+            checkPasswordStrength(password) {
+                const strength = document.getElementById('passwordStrength');
+                let score = 0;
+                
+                if (password.length >= 8) score++;
+                if (/[A-Z]/.test(password)) score++;
+                if (/[0-9]/.test(password)) score++;
+                if (/[^A-Za-z0-9]/.test(password)) score++;
+                
+                if (password.length === 0) {
+                    strength.textContent = '';
+                    return;
+                }
+                
+                if (score <= 1) {
+                    strength.textContent = 'Weak password';
+                    strength.className = 'password-strength strength-weak';
+                } else if (score <= 3) {
+                    strength.textContent = 'Medium strength';
+                    strength.className = 'password-strength strength-medium';
+                } else {
+                    strength.textContent = 'Strong password';
+                    strength.className = 'password-strength strength-strong';
+                }
+            }
+
+            // New role selection handler
+            handleRoleSelection(event) {
+                document.querySelectorAll('#registerRoleSelection .role-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                event.currentTarget.classList.add('selected');
+                this.selectedRegisterRole = event.currentTarget.getAttribute('data-role');
+                
+                const subscriptionFeatures = document.getElementById('subscriptionFeatures');
+                if (this.selectedRegisterRole === 'admin') {
+                    subscriptionFeatures.innerHTML = `
+                        <div class="subscription-title">Administrator Access</div>
+                        <div class="subscription-features">
+                            • Full system access<br>
+                            • User management<br>
+                            • Book upload & management<br>
+                            • Advanced analytics<br>
+                            • Category management
+                        </div>
+                    `;
+                } else {
+                    subscriptionFeatures.innerHTML = `
+                        <div class="subscription-title">Free Subscription Included</div>
+                        <div class="subscription-features">
+                            • Access to free books<br>
+                            • AI-powered search<br>
+                            • Reading progress tracking<br>
+                            • Basic recommendations
+                        </div>
+                    `;
+                }
+            }
+
+            // New avatar selection handler
+            handleAvatarSelection(event) {
+                document.querySelectorAll('#registerAvatarSelection .avatar-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                event.currentTarget.classList.add('selected');
+                this.selectedRegisterAvatar = event.currentTarget.getAttribute('data-avatar');
+            }
+
+
+            setupEventListeners() {
+                // Auth buttons in nav
+                document.getElementById('loginBtn').addEventListener('click', () => {
+                    this.showModal('loginModal');
+                });
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    this.logout();
+                });
+
+                // Toggling between login/register modals
+                document.getElementById('showRegisterModalBtn').addEventListener('click', () => {
+                    this.hideModal('loginModal');
+                    this.showModal('registerModal');
+                });
+                document.getElementById('showLoginModalBtn').addEventListener('click', () => {
+                    this.hideModal('registerModal');
+                    this.showModal('loginModal');
+                });
+
+                // Close modals when clicking X
+                document.querySelectorAll('.modal .close').forEach(closeBtn => {
+                    closeBtn.addEventListener('click', (e) => {
+                        e.target.closest('.modal').style.display = 'none';
+                    });
+                });
+
+                // Close modals when clicking outside
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                });
+
+                // Login form submission
+                document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    this.hideAuthMessage('loginErrorMessage');
+                    this.hideAuthMessage('loginSuccessMessage');
+                    
+                    const email = document.getElementById('loginEmail').value;
+                    const password = document.getElementById('loginPassword').value;
+                    await this.login(email, password);
+                });
+
+                // Register form submission
+                document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    this.hideAuthMessage('registerErrorMessage');
+                    this.hideAuthMessage('registerSuccessMessage');
+                    
+                    const email = document.getElementById('registerEmail').value;
+                    const password = document.getElementById('registerPassword').value;
+                    const academicLevel = document.getElementById('registerAcademicLevel').value;
+                    const firstName = document.getElementById('registerFirstName').value;
+                    const lastName = document.getElementById('registerLastName').value;
+                    const department = document.getElementById('registerDepartment').value;
+
+                    // Basic validation
+                    if (!email || !password || !academicLevel || !firstName || !lastName || !department) {
+                        this.showAuthMessage('registerErrorMessage', 'Please fill in all required fields.');
+                        return;
+                    }
+                    if (password.length < 6) {
+                        this.showAuthMessage('registerErrorMessage', 'Password must be at least 6 characters long.');
+                        return;
+                    }
+                    
+                    const userData = {
+                        email,
+                        password,
+                        academicLevel,
+                        firstName,
+                        lastName,
+                        department,
+                        role: this.selectedRegisterRole,
+                        avatar: this.selectedRegisterAvatar
+                    };
+                    await this.signup(userData);
+                });
+
+                // Password strength event listener
+                document.getElementById('registerPassword').addEventListener('input', (e) => {
+                    this.checkPasswordStrength(e.target.value);
+                });
+
+                // Role selection event listeners
+                document.querySelectorAll('#registerRoleSelection .role-option').forEach(option => {
+                    option.addEventListener('click', (e) => this.handleRoleSelection(e));
+                });
+
+                // Avatar selection event listeners
+                document.querySelectorAll('#registerAvatarSelection .avatar-option').forEach(option => {
+                    option.addEventListener('click', (e) => this.handleAvatarSelection(e));
+                });
+
+
+                // Search events
+                document.getElementById('searchForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const query = document.getElementById('searchInput').value;
+                    this.handleSearch(query);
+                });
+
+                // Quick search buttons
+                document.querySelectorAll('.quick-search').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const query = e.target.dataset.query;
+                        document.getElementById('searchInput').value = query;
+                        this.handleSearch(query);
+                    });
+                });
+
+                // Filter events
+                document.getElementById('filterGenre').addEventListener('change', (e) => {
+                    this.applyFilters();
+                });
+
+                document.getElementById('filterLevel').addEventListener('change', (e) => {
+                    this.applyFilters();
+                });
+
+                document.getElementById('clearFilters').addEventListener('click', () => {
+                    document.getElementById('filterGenre').value = '';
+                    document.getElementById('filterLevel').value = '';
+                    this.loadBooks();
+                });
+
+                // Admin button
+                document.getElementById('adminBtn').addEventListener('click', () => {
+                    this.showNotification('Admin dashboard would open here. This feature requires additional backend endpoints.');
+                });
+            }
+
+            applyFilters() {
+                const genre = document.getElementById('filterGenre').value;
+                const level = document.getElementById('filterLevel').value;
+                
+                this.loadBooks({
+                    genre: genre || undefined,
+                    academic_level: level || undefined
+                });
+            }
+        }
+
+        // Initialize app
+        const app = new BookGenieApp();
+    </script>
+</body>
+</html>
