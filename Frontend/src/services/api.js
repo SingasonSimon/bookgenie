@@ -129,5 +129,158 @@ export class BookGenieAPI {
       throw error
     }
   }
+
+  async promoteToAdmin(email) {
+    return this.request('/setup/promote-to-admin', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  // Admin - Users
+  async getUsers(token) {
+    return this.request('/admin/users', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async getUserDetails(userId, token) {
+    return this.request(`/admin/users/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async updateUser(userId, data, token) {
+    return this.request(`/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteUser(userId, token) {
+    return this.request(`/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async updateUserSubscription(userId, subscriptionLevel, token) {
+    return this.request(`/admin/users/${userId}/subscription`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ subscription_level: subscriptionLevel }),
+    })
+  }
+
+  async getUserTraffic(userId, token) {
+    return this.request(`/admin/users/${userId}/traffic`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  // Admin - Books
+  async createBook(data, token) {
+    return this.request('/books', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateBook(bookId, data, token) {
+    return this.request(`/admin/books/${bookId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteBook(bookId, token) {
+    return this.request(`/admin/books/${bookId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async uploadBookFile(bookId, file, token) {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    return fetch(`${API_BASE}/books/${bookId}/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    }).then(res => res.json())
+  }
+
+  async uploadBookCover(bookId, file, token) {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    return fetch(`${API_BASE}/books/${bookId}/upload-cover`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    }).then(res => res.json())
+  }
+
+  // Admin - Analytics
+  async getAnalytics(token) {
+    return this.request('/admin/analytics', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  // Admin - Subscription Requests
+  async getSubscriptionRequests(token) {
+    return this.request('/admin/subscription-requests', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async approveSubscriptionRequest(requestId, token) {
+    return this.request(`/admin/subscription-requests/${requestId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async rejectSubscriptionRequest(requestId, token) {
+    return this.request(`/admin/subscription-requests/${requestId}/reject`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
 }
 

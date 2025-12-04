@@ -2709,6 +2709,109 @@ def admin_users():
     conn.close()
     return jsonify(users)
 
+@app.route('/api/setup/promote-to-admin', methods=['POST'])
+def promote_to_admin():
+    """One-time setup endpoint to promote a user to admin (only works if no admins exist)"""
+    try:
+        data = request.json
+        if not data or 'email' not in data:
+            return jsonify({'error': 'Email required'}), 400
+        
+        conn = get_db()
+        c = conn.cursor()
+        
+        # Check if any admin exists
+        c.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+        admin_count = c.fetchone()[0]
+        
+        if admin_count > 0:
+            conn.close()
+            return jsonify({'error': 'Admin users already exist. Use admin account to promote users.'}), 403
+        
+        # Find user by email (case-insensitive)
+        c.execute("SELECT id, email FROM users WHERE LOWER(email) = LOWER(?)", (data['email'],))
+        user_row = c.fetchone()
+        
+        if not user_row:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Promote to admin
+        c.execute("UPDATE users SET role = 'admin', subscription_level = 'premium' WHERE id = ?", (user_row['id'],))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'User {user_row["email"]} has been promoted to admin'
+        })
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/setup/reset-admin-password', methods=['POST'])
+def reset_admin_password():
+    """Reset admin password - only works if admin exists but can't login"""
+    try:
+        data = request.json
+        if not data or 'email' not in data or 'new_password' not in data:
+            return jsonify({'error': 'Email and new_password required'}), 400
+        
+        conn = get_db()
+        c = conn.cursor()
+        
+        # Find admin user by email (case-insensitive)
+        c.execute("SELECT id, email, role FROM users WHERE LOWER(email) = LOWER(?) AND role = 'admin'", (data['email'],))
+        user_row = c.fetchone()
+        
+        if not user_row:
+            conn.close()
+            return jsonify({'error': 'Admin user not found with that email'}), 404
+        
+        # Hash new password
+        import hashlib
+        new_password_hash = hashlib.sha256(data['new_password'].encode()).hexdigest()
+        
+        # Update password
+        c.execute("UPDATE users SET password = ? WHERE id = ?", (new_password_hash, user_row['id']))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Password reset for admin {user_row["email"]}. You can now login with the new password.'
+        })
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/setup/list-admins', methods=['GET'])
+def list_admins():
+    """List all admin users (for troubleshooting)"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        c.execute("SELECT id, email, role, subscription_level, created_at FROM users WHERE role = 'admin'")
+        admins = []
+        for row in c.fetchall():
+            admins.append({
+                'id': row['id'],
+                'email': row['email'],
+                'role': row['role'],
+                'subscriptionLevel': row['subscription_level'] or 'free',
+                'createdAt': row['created_at']
+            })
+        
+        conn.close()
+        return jsonify({'admins': admins, 'count': len(admins)})
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/users/<int:user_id>', methods=['GET', 'PUT'])
 @require_admin
 def admin_user_detail(user_id):
@@ -2815,6 +2918,41 @@ def admin_user_detail(user_id):
         
         return jsonify({'success': True, 'message': 'User updated successfully'})
 
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@require_admin
+def admin_delete_user(user_id):
+    """Delete a user (admin only)"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Prevent deleting yourself
+    if user_id == request.current_user['user_id']:
+        conn.close()
+        return jsonify({'error': 'Cannot delete your own account'}), 400
+    
+    # Check if user exists
+    c.execute('SELECT id, email, role FROM users WHERE id=?', (user_id,))
+    user_row = c.fetchone()
+    
+    if not user_row:
+        conn.close()
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Prevent deleting the last admin
+    if user_row['role'] == 'admin':
+        c.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+        admin_count = c.fetchone()[0]
+        if admin_count <= 1:
+            conn.close()
+            return jsonify({'error': 'Cannot delete the last admin user'}), 400
+    
+    # Delete user (cascade will handle related records if foreign keys are set up)
+    c.execute('DELETE FROM users WHERE id=?', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'User deleted successfully'})
+
 @app.route('/api/admin/users/<int:user_id>/subscription', methods=['PUT'])
 @require_admin
 def admin_update_subscription(user_id):
@@ -2902,6 +3040,19 @@ def admin_analytics():
     conn = get_db()
     c = conn.cursor()
     
+    # Total counts
+    c.execute('SELECT COUNT(*) FROM users')
+    total_users = c.fetchone()[0]
+    
+    c.execute('SELECT COUNT(*) FROM books')
+    total_books = c.fetchone()[0]
+    
+    c.execute('SELECT COUNT(*) FROM search_history')
+    total_searches = c.fetchone()[0]
+    
+    c.execute('SELECT COUNT(*) FROM reading_history')
+    total_reading_sessions = c.fetchone()[0]
+    
     # Daily stats
     c.execute('''SELECT COUNT(*) FROM users 
                  WHERE DATE(created_at) = DATE('now')''')
@@ -2963,6 +3114,12 @@ def admin_analytics():
     conn.close()
     
     return jsonify({
+        'totalStats': {
+            'totalUsers': total_users,
+            'totalBooks': total_books,
+            'totalSearches': total_searches,
+            'totalReadingSessions': total_reading_sessions
+        },
         'dailyStats': {
             'newUsers': new_users,
             'searches': searches,
@@ -3001,6 +3158,63 @@ def admin_subscription_requests():
     
     conn.close()
     return jsonify(requests)
+
+@app.route('/api/admin/subscription-requests/<int:request_id>/approve', methods=['POST'])
+@require_admin
+def approve_subscription_request(request_id):
+    """Approve a subscription request"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Get request details
+    c.execute('''SELECT sr.*, u.id as user_id 
+                 FROM subscription_requests sr
+                 JOIN users u ON sr.user_id = u.id
+                 WHERE sr.id = ? AND sr.status = "pending"''', (request_id,))
+    request_row = c.fetchone()
+    
+    if not request_row:
+        conn.close()
+        return jsonify({'error': 'Request not found or already processed'}), 404
+    
+    # Update user subscription
+    c.execute('UPDATE users SET subscription_level = ? WHERE id = ?', 
+              (request_row['requested_level'], request_row['user_id']))
+    
+    # Update request status
+    c.execute('''UPDATE subscription_requests 
+                 SET status = 'approved', approved_at = CURRENT_TIMESTAMP
+                 WHERE id = ?''', (request_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Subscription request approved'})
+
+@app.route('/api/admin/subscription-requests/<int:request_id>/reject', methods=['POST'])
+@require_admin
+def reject_subscription_request(request_id):
+    """Reject a subscription request"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Get request details
+    c.execute('SELECT * FROM subscription_requests WHERE id = ? AND status = "pending"', (request_id,))
+    request_row = c.fetchone()
+    
+    if not request_row:
+        conn.close()
+        return jsonify({'error': 'Request not found or already processed'}), 404
+    
+    # Update request status
+    c.execute('''UPDATE subscription_requests 
+                 SET status = 'rejected', approved_at = CURRENT_TIMESTAMP
+                 WHERE id = ?''', (request_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Subscription request rejected'})
 
 # ============================================
 # SUBSCRIPTION MANAGEMENT
