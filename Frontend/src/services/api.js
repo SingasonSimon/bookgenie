@@ -437,5 +437,14 @@ export class BookGenieAPI {
       body: JSON.stringify({ type, value }),
     })
   }
+
+  // Get books by category
+  async getBooksByCategory(categoryName, token, page = 1, perPage = 12) {
+    return this.request(`/categories/${encodeURIComponent(categoryName)}/books?page=${page}&per_page=${perPage}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
 }
 

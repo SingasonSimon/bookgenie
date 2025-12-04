@@ -14,6 +14,7 @@ export default function CategoryFormModal({ category, onClose, onSave }) {
     name: '',
     description: '',
     color: '#667eea',
+    icon: 'BookOpen',
   })
   const [loading, setLoading] = useState(false)
 
@@ -23,6 +24,7 @@ export default function CategoryFormModal({ category, onClose, onSave }) {
         name: category.name || '',
         description: category.description || '',
         color: category.color || '#667eea',
+        icon: category.icon || 'BookOpen',
       })
     }
   }, [category])
@@ -101,33 +103,66 @@ export default function CategoryFormModal({ category, onClose, onSave }) {
               />
             </div>
 
-            <div>
-              <label className="block mb-2 text-gray-700 font-medium text-sm flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                Color
-              </label>
-              <div className="space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  {COLOR_PRESETS.map((color) => (
-                    <motion.button
-                      key={color}
-                      type="button"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setFormData(prev => ({ ...prev, color }))}
-                      className={`w-10 h-10 rounded-lg border-2 transition-all ${
-                        formData.color === color ? 'border-gray-900 scale-110' : 'border-gray-300'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block mb-2 text-gray-700 font-medium text-sm flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  Color
+                </label>
+                <div className="space-y-3">
+                  <div className="flex gap-2 flex-wrap">
+                    {COLOR_PRESETS.map((color) => (
+                      <motion.button
+                        key={color}
+                        type="button"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setFormData(prev => ({ ...prev, color }))}
+                        className={`w-10 h-10 rounded-lg border-2 transition-all ${
+                          formData.color === color ? 'border-gray-900 scale-110' : 'border-gray-300'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-full h-12 rounded-lg cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-full h-12 rounded-lg cursor-pointer"
-                />
+              </div>
+
+              <div>
+                <label className="block mb-2 text-gray-700 font-medium text-sm flex items-center gap-2">
+                  <Star className="w-4 h-4" />
+                  Icon
+                </label>
+                <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                  {ICON_OPTIONS.map((iconOption) => {
+                    const IconComponent = iconOption.component
+                    const isSelected = formData.icon === iconOption.name
+                    return (
+                      <motion.button
+                        key={iconOption.name}
+                        type="button"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setFormData(prev => ({ ...prev, icon: iconOption.name }))}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                          isSelected 
+                            ? 'bg-primary-600 text-white shadow-lg scale-110' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        title={iconOption.name}
+                      >
+                        <IconComponent className="w-5 h-5" />
+                      </motion.button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Selected: {formData.icon}</p>
               </div>
             </div>
 

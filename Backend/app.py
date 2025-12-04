@@ -3774,16 +3774,92 @@ def categories():
     c.execute('SELECT * FROM categories ORDER BY name')
     categories = []
     for row in c.fetchall():
+        category_name = row['name']
+        
+        # Get book count for this category (matching genre field)
+        c.execute('SELECT COUNT(*) FROM books WHERE genre = ?', (category_name,))
+        book_count = c.fetchone()[0]
+        
         categories.append({
             'id': row['id'],
-            'name': row['name'],
+            'name': category_name,
             'description': row['description'] or '',
             'color': row['color'] or '#667eea',
-            'icon': row_get(row, 'icon') or 'BookOpen'
+            'icon': row_get(row, 'icon') or 'BookOpen',
+            'book_count': book_count
         })
     
     conn.close()
     return jsonify(categories)
+
+@app.route('/api/categories/<category_name>/books', methods=['GET'])
+@require_auth
+def get_books_by_category(category_name):
+    """Get books by category name (genre match)"""
+    user_id = request.current_user['user_id']
+    
+    # Get user subscription
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT subscription_level FROM users WHERE id=?', (user_id,))
+    user_row = c.fetchone()
+    user_subscription = user_row['subscription_level'] or 'free' if user_row else 'free'
+    
+    # Build query with subscription filter
+    if user_subscription == 'free':
+        base_query = "SELECT * FROM books WHERE genre = ? AND subscription_level = 'free'"
+        params = [category_name]
+    elif user_subscription == 'basic':
+        base_query = "SELECT * FROM books WHERE genre = ? AND subscription_level IN ('free', 'basic')"
+        params = [category_name]
+    else:
+        base_query = "SELECT * FROM books WHERE genre = ?"
+        params = [category_name]
+    
+    # Get pagination
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 12))
+    offset = (page - 1) * per_page
+    
+    # Get total count
+    count_query = base_query.replace('SELECT *', 'SELECT COUNT(*)')
+    c.execute(count_query, params)
+    total_count = c.fetchone()[0]
+    
+    # Get books with pagination
+    query = f"{base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    c.execute(query, params + [per_page, offset])
+    
+    books = []
+    for row in c.fetchall():
+        books.append({
+            'id': row['id'],
+            'title': row['title'],
+            'author': row['author'],
+            'abstract': row['abstract'] if row['abstract'] else '',
+            'genre': row['genre'] if row['genre'] else '',
+            'academic_level': row['academic_level'] if row['academic_level'] else '',
+            'tags': row['tags'].split(',') if row['tags'] else [],
+            'cover_image': row_get(row, 'cover_image', 'book'),
+            'subscription_level': row_get(row, 'subscription_level', 'free'),
+            'pages': row_get(row, 'pages', 0),
+            'file_url': row_get(row, 'file_url', '')
+        })
+    
+    conn.close()
+    
+    total_pages = (total_count + per_page - 1) // per_page
+    
+    return jsonify({
+        'books': books,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total_count,
+            'total_pages': total_pages
+        },
+        'category': category_name
+    })
 
 @app.route('/api/admin/categories', methods=['POST'])
 @require_admin
