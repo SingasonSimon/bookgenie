@@ -1634,11 +1634,13 @@ class BookGenieAI:
             if book_id in self.book_embeddings:
                 book_embedding = self.book_embeddings[book_id]
                 similarity = cosine_similarity([query_embedding[0]], [book_embedding])[0][0]
-                similarities.append({
-                    'book': book,
-                    'similarity_score': float(similarity),
-                    'relevance_percentage': round(float(similarity) * 100, 1)
-                })
+                # Only include positive similarity scores (related content)
+                if float(similarity) > 0:
+                    similarities.append({
+                        'book': book,
+                        'similarity_score': float(similarity),
+                        'relevance_percentage': round(float(similarity) * 100, 1)
+                    })
         
         # Sort by similarity and return top results
         results = sorted(similarities, key=lambda x: x['similarity_score'], reverse=True)[:top_k]
@@ -2324,12 +2326,16 @@ def search():
             # Elasticsearch doesn't support IN directly, so we'll filter in Python
             filters['subscription_level'] = ['free', 'basic']
         
-        results = es_service.search(query, top_k=top_k, filters=filters if user_subscription != 'premium' else None)
+        all_results = es_service.search(query, top_k=top_k * 2, filters=filters if user_subscription != 'premium' else None)
         
-        if results is not None:
+        if all_results is not None:
             # Filter by subscription if needed (for basic users)
             if user_subscription == 'basic':
-                results = [r for r in results if r['book'].get('subscription_level') in ['free', 'basic']]
+                all_results = [r for r in all_results if r['book'].get('subscription_level') in ['free', 'basic']]
+            
+            # Filter out negative matches - only return results with positive similarity/relevance
+            results = [r for r in all_results 
+                      if (r.get('similarity_score', 0) > 0 or r.get('relevance_percentage', 0) > 0)][:top_k]
             
             # Log search history if user is authenticated
             user_id = None
@@ -2394,7 +2400,10 @@ def search():
             pass
     
     ai_engine.generate_embeddings(books)
-    results = ai_engine.semantic_search(query, books, top_k)
+    all_results = ai_engine.semantic_search(query, books, top_k * 2)  # Get more results to filter
+    
+    # Filter out negative matches - only return results with positive similarity
+    results = [r for r in all_results if r.get('similarity_score', 0) > 0][:top_k]
     
     if user_id:
         c.execute('''INSERT INTO search_history (user_id, query, results_count)

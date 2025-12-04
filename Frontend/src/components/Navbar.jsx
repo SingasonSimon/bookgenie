@@ -11,53 +11,53 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="sticky top-4 z-30 mb-6"
+      className="sticky top-2 sm:top-4 z-30 mb-4 sm:mb-6"
     >
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="glass-effect rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/50">
-          <div className="flex justify-between items-center h-18 sm:h-20">
+      <nav className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="glass-effect rounded-xl sm:rounded-2xl shadow-2xl p-3 sm:p-4 md:p-5 lg:p-6 border border-white/50">
+          <div className="flex justify-between items-center gap-2 sm:gap-4">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="flex items-center gap-4 cursor-pointer group"
+            className="flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group flex-1 min-w-0"
             onClick={() => navigate('/')}
           >
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center flex-shrink-0">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-display font-bold text-gradient leading-tight">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-gradient leading-tight truncate">
                 BookGenie
               </h1>
-              <span className="text-gray-600 text-sm font-medium hidden sm:inline block mt-0.5">AI-Powered Academic Library</span>
+              <span className="text-gray-600 text-xs sm:text-sm font-medium hidden sm:inline block mt-0.5">AI-Powered Academic Library</span>
             </div>
           </motion.div>
           
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
             {user ? (
               <>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => navigate('/dashboard')}
-                  className="btn-secondary flex items-center gap-2 text-sm px-4 hidden sm:flex"
+                  className="btn-secondary flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 md:px-4 hidden md:flex"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden lg:inline">Dashboard</span>
                 </motion.button>
                 <div className="relative">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-base">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
                       {user?.firstName?.[0] || user?.email?.[0] || 'U'}
                     </div>
-                    <span className="font-semibold text-gray-700 text-base hidden sm:inline">
+                    <span className="font-semibold text-gray-700 text-sm sm:text-base hidden lg:inline">
                       {user?.firstName || user?.email?.split('@')[0] || 'User'}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 transition-transform flex-shrink-0 ${showProfileDropdown ? 'rotate-180' : ''}`} />
                   </motion.button>
                   <AnimatePresence>
                     {showProfileDropdown && (
@@ -125,9 +125,9 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={onLoginClick}
-                className="btn-primary flex items-center gap-2 px-6"
+                className="btn-primary flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 text-sm sm:text-base"
               >
-                <User className="w-4 h-4" />
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Login</span>
               </motion.button>
             )}

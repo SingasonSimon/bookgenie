@@ -40,21 +40,22 @@ export default function HomePage() {
         setBooks([])
         return
       }
-      const booksData = await api.getBooks(token, filters)
-      if (Array.isArray(booksData)) {
-        setBooks(booksData)
-        setSearchResults([])
-        if (booksData.length === 0) {
-          showNotification('No books found. Try adjusting your filters.', 'info')
-        }
-      } else {
-        setBooks([])
-        showNotification('Unexpected response format from server.', 'error')
+      const response = await api.getBooks(token, filters)
+      // Handle both old format (array) and new format (object with books property)
+      const booksArray = Array.isArray(response) ? response : (response?.books || [])
+      setBooks(booksArray)
+      setSearchResults([])
+      if (booksArray.length === 0 && user) {
+        // Only show notification if user is logged in
+        showNotification('No books found. Try adjusting your filters.', 'info')
       }
     } catch (error) {
       console.error('Error loading books:', error)
-      const errorMessage = error.message || 'Failed to load books. Please try again.'
-      showNotification(errorMessage, 'error')
+      // Don't show error notification on page load if user is not logged in
+      if (user) {
+        const errorMessage = error.message || 'Failed to load books. Please try again.'
+        showNotification(errorMessage, 'error')
+      }
       setBooks([])
     } finally {
       setIsLoading(false)
@@ -92,16 +93,29 @@ export default function HomePage() {
     try {
       setIsLoading(true)
       const token = localStorage.getItem('bookgenie_token')
-      const results = await api.search(query, token)
-      if (Array.isArray(results)) {
-        setSearchResults(results)
-        setBooks([])
-        if (results.length === 0) {
+      const response = await api.search(query, token)
+      // Handle response format: { results: [] } or just array
+      const allResults = Array.isArray(response) ? response : (response?.results || [])
+      
+      // Filter out negative matches - only show results with positive similarity/relevance
+      const results = allResults.filter(result => {
+        const similarity = result.similarity_score ?? result.relevance_percentage / 100
+        const relevance = result.relevance_percentage ?? (result.similarity_score * 100)
+        
+        // Only include results with positive similarity score and relevance
+        return (similarity > 0 && relevance > 0) || 
+               (similarity !== undefined && similarity > 0) ||
+               (relevance !== undefined && relevance > 0)
+      })
+      
+      setSearchResults(results)
+      setBooks([])
+      if (results.length === 0) {
+        if (allResults.length > 0) {
+          showNotification('No relevant results found. Try a different search query.', 'info')
+        } else {
           showNotification('No results found. Try a different search query.', 'info')
         }
-      } else {
-        setSearchResults([])
-        showNotification('Unexpected response format from server.', 'error')
       }
     } catch (error) {
       console.error('Search error:', error)
@@ -133,8 +147,8 @@ export default function HomePage() {
   const displayBooks = searchResults.length > 0 ? searchResults.map(r => r.book || r) : books
 
   return (
-    <div className="min-h-screen blob-bg p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen blob-bg p-2 sm:p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
         <Navbar
           user={user}
           onLoginClick={() => setShowLoginModal(true)}
@@ -146,13 +160,13 @@ export default function HomePage() {
         />
 
         {/* Hero Section - Search First */}
-        <section className="space-y-6">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-gray-900">
+        <section className="space-y-4 sm:space-y-6">
+          <div className="text-center space-y-2 sm:space-y-3 max-w-3xl mx-auto px-2 sm:px-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-gray-900 leading-tight">
               Discover Your Next
               <span className="text-gradient"> Academic Book</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600">
               AI-powered search to find exactly what you need
             </p>
           </div>
