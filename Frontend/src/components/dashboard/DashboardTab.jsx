@@ -13,6 +13,8 @@ export default function DashboardTab({ onNavigateToTab }) {
   const [stats, setStats] = useState(null)
   const [analytics, setAnalytics] = useState(null)
   const [recommendedBooks, setRecommendedBooks] = useState([])
+  const [favoriteGenres, setFavoriteGenres] = useState([])
+  const [recentlyRead, setRecentlyRead] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedBook, setSelectedBook] = useState(null)
   const api = new BookGenieAPI()
@@ -42,6 +44,8 @@ export default function DashboardTab({ onNavigateToTab }) {
         const data = await response.json()
         setStats(data.stats)
         setRecommendedBooks(data.recommended_books || [])
+        setFavoriteGenres(data.favorite_genres || [])
+        setRecentlyRead(data.recently_read || [])
       }
     } catch (error) {
       console.error('Dashboard error:', error)
@@ -103,7 +107,7 @@ export default function DashboardTab({ onNavigateToTab }) {
     },
   ]
 
-  // Student stat cards
+  // Student stat cards - Expanded
   const studentStatCards = [
     {
       icon: BookOpen,
@@ -118,6 +122,8 @@ export default function DashboardTab({ onNavigateToTab }) {
       label: 'Total Searches',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      trend: stats?.searches_this_week || 0,
+      trendLabel: 'this week',
     },
     {
       icon: BookMarked,
@@ -125,6 +131,22 @@ export default function DashboardTab({ onNavigateToTab }) {
       label: 'Reading Sessions',
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      trend: stats?.reading_this_week || 0,
+      trendLabel: 'this week',
+    },
+    {
+      icon: Clock,
+      value: stats?.reading_today || 0,
+      label: 'Sessions Today',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+    },
+    {
+      icon: Eye,
+      value: stats?.searches_today || 0,
+      label: 'Searches Today',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
     },
     {
       icon: Star,
@@ -154,7 +176,7 @@ export default function DashboardTab({ onNavigateToTab }) {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isAdmin ? 'xl:grid-cols-6' : 'xl:grid-cols-6'} gap-4 mb-8`}>
           {statCards.map((stat, idx) => {
             const Icon = stat.icon
             const isPendingRequests = isAdmin && stat.clickable && stat.value > 0
@@ -385,19 +407,145 @@ export default function DashboardTab({ onNavigateToTab }) {
         </div>
       )}
 
-      {/* Recommended Books - Only for students */}
-      {!isAdmin && (
-        <>
-          {loading ? (
-            <div>
-              <div className="h-8 w-48 skeleton rounded mb-6"></div>
-              <GridSkeleton count={3} />
+      {/* Student Dashboard Content */}
+      {!isAdmin && !loading && stats && (
+        <div className="space-y-6">
+          {/* Quick Stats Grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-blue-900">{stats.searches_today || 0}</div>
+                  <div className="text-sm font-medium text-blue-700 mt-1">Searches Today</div>
+                </div>
+                <Search className="w-10 h-10 text-blue-600 opacity-50" />
+              </div>
             </div>
-          ) : recommendedBooks.length > 0 ? (
+            <div className="card bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-green-900">{stats.reading_today || 0}</div>
+                  <div className="text-sm font-medium text-green-700 mt-1">Reading Sessions Today</div>
+                </div>
+                <BookMarked className="w-10 h-10 text-green-600 opacity-50" />
+              </div>
+            </div>
+            <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-purple-900">
+                    {stats.books_read > 0 
+                      ? ((stats.total_reading / stats.books_read) || 0).toFixed(1)
+                      : 0}
+                  </div>
+                  <div className="text-sm font-medium text-purple-700 mt-1">Avg Sessions per Book</div>
+                </div>
+                <Zap className="w-10 h-10 text-purple-600 opacity-50" />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Favorite Genres */}
+            {favoriteGenres && favoriteGenres.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Star className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Favorite Genres</h2>
+                </div>
+                <div className="space-y-3">
+                  {favoriteGenres.map((genre, idx) => {
+                    const total = favoriteGenres.reduce((sum, g) => sum + g.count, 0)
+                    const percentage = total > 0 ? ((genre.count / total) * 100).toFixed(0) : 0
+                    return (
+                      <motion.div
+                        key={genre.genre}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.4 + idx * 0.05 }}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-primary-600" />
+                            <span className="font-medium text-gray-900">{genre.genre}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">{genre.count}</span>
+                            <span className="text-xs text-gray-500">({percentage}%)</span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 0.8, delay: 0.5 + idx * 0.1 }}
+                            className="h-full bg-primary-500 rounded-full"
+                          />
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Recently Read */}
+            {recentlyRead && recentlyRead.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="card"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Clock className="w-5 h-5 text-primary-600" />
+                  <h2 className="text-xl font-display font-bold text-gray-900">Recently Read</h2>
+                </div>
+                <div className="space-y-3">
+                  {recentlyRead.map((book, idx) => (
+                    <motion.div
+                      key={book.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + idx * 0.05 }}
+                      onClick={() => setSelectedBook(book)}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <div className="w-12 h-16 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{book.title}</div>
+                        <div className="text-sm text-gray-600 truncate">{book.author}</div>
+                        {book.genre && (
+                          <div className="text-xs text-primary-600 mt-1">{book.genre}</div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Recommended Books */}
+          {recommendedBooks.length > 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.5 }}
             >
               <div className="flex items-center gap-3 mb-6">
                 <Sparkles className="w-5 h-5 text-primary-600" />
@@ -413,7 +561,7 @@ export default function DashboardTab({ onNavigateToTab }) {
                       key={book.id || idx}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 + idx * 0.1 }}
+                      transition={{ delay: 0.6 + idx * 0.1 }}
                     >
                       <BookCard
                         book={book}
@@ -449,7 +597,7 @@ export default function DashboardTab({ onNavigateToTab }) {
                 })}
               </div>
             </motion.div>
-          ) : (
+          ) : !loading && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -459,6 +607,14 @@ export default function DashboardTab({ onNavigateToTab }) {
               <p className="text-gray-600">No recommendations yet. Start reading to get personalized suggestions!</p>
             </motion.div>
           )}
+        </div>
+      )}
+
+      {/* Loading state for student dashboard */}
+      {!isAdmin && loading && (
+        <>
+          <div className="h-8 w-48 skeleton rounded mb-6"></div>
+          <GridSkeleton count={3} />
         </>
       )}
 

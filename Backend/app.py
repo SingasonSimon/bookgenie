@@ -2529,13 +2529,59 @@ def student_dashboard():
     c.execute('SELECT COUNT(DISTINCT book_id) FROM reading_history WHERE user_id=?', (user_id,))
     books_read = c.fetchone()[0]
     
+    # Daily activity
+    c.execute('''SELECT COUNT(*) FROM search_history 
+                 WHERE user_id=? AND DATE(created_at) = DATE('now')''', (user_id,))
+    searches_today = c.fetchone()[0]
+    
+    c.execute('''SELECT COUNT(*) FROM reading_history 
+                 WHERE user_id=? AND DATE(created_at) = DATE('now')''', (user_id,))
+    reading_today = c.fetchone()[0]
+    
+    # Recent activity (last 7 days)
+    c.execute('''SELECT COUNT(*) FROM reading_history 
+                 WHERE user_id=? AND created_at >= datetime('now', '-7 days')''', (user_id,))
+    reading_this_week = c.fetchone()[0]
+    
+    c.execute('''SELECT COUNT(*) FROM search_history 
+                 WHERE user_id=? AND created_at >= datetime('now', '-7 days')''', (user_id,))
+    searches_this_week = c.fetchone()[0]
+    
+    # Favorite genres (from books read)
+    c.execute('''SELECT b.genre, COUNT(*) as count
+                 FROM reading_history rh
+                 JOIN books b ON rh.book_id = b.id
+                 WHERE rh.user_id = ?
+                 GROUP BY b.genre
+                 ORDER BY count DESC
+                 LIMIT 5''', (user_id,))
+    favorite_genres = [{'genre': row['genre'] or 'Unknown', 'count': row['count']} for row in c.fetchall()]
+    
+    # Recently read books (last 5)
+    c.execute('''SELECT DISTINCT b.id, b.title, b.author, b.genre, b.cover_image, b.subscription_level
+                 FROM reading_history rh
+                 JOIN books b ON rh.book_id = b.id
+                 WHERE rh.user_id = ?
+                 ORDER BY rh.created_at DESC
+                 LIMIT 5''', (user_id,))
+    recently_read = []
+    for row in c.fetchall():
+        recently_read.append({
+            'id': row['id'],
+            'title': row['title'],
+            'author': row['author'],
+            'genre': row['genre'] or '',
+            'cover_image': row_get(row, 'cover_image', 'book'),
+            'subscription_level': row_get(row, 'subscription_level', 'free')
+        })
+    
     # Get recommended books - try hybrid first, fallback to content-based
     recommended_books = []
     try:
         # Try hybrid recommendations
-        hybrid_recs = hybrid_engine.get_hybrid_recommendations(user_id, conn, top_k=5)
+        hybrid_recs = hybrid_engine.get_hybrid_recommendations(user_id, conn, top_k=6)
         if hybrid_recs:
-            recommended_books = [rec['book'] for rec in hybrid_recs[:5]]
+            recommended_books = [rec['book'] for rec in hybrid_recs[:6]]
     except:
         # Fallback to content-based recommendations
         c.execute('''SELECT DISTINCT book_id FROM reading_history 
@@ -2557,9 +2603,15 @@ def student_dashboard():
             'total_searches': total_searches,
             'total_reading': total_reading,
             'books_read': books_read,
-            'subscription_level': subscription_level
+            'subscription_level': subscription_level,
+            'searches_today': searches_today,
+            'reading_today': reading_today,
+            'reading_this_week': reading_this_week,
+            'searches_this_week': searches_this_week
         },
-        'recommended_books': recommended_books[:5] if recommended_books else []
+        'favorite_genres': favorite_genres,
+        'recently_read': recently_read,
+        'recommended_books': recommended_books[:6] if recommended_books else []
     }
     
     # Cache for shorter time (1 minute) since user activity changes frequently
