@@ -42,11 +42,11 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
                     <BookOpen className="w-6 h-6 text-white" />
                   </div>
-                  <div>
+                  <div className="flex flex-col">
                     <span className="text-2xl sm:text-3xl font-display font-bold text-gradient leading-tight">
                       BookGenie
                     </span>
-                    <span className="text-gray-600 text-sm font-medium hidden sm:inline block mt-0.5">AI-Powered Academic Library</span>
+                    <span className="text-gray-600 text-sm font-medium hidden sm:block mt-0.5">AI-Powered Academic Library</span>
                   </div>
                 </motion.button>
                 <button
