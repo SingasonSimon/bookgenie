@@ -433,9 +433,14 @@ export default function DashboardTab({ onNavigateToTab }) {
                             setSelectedBook(book)
                           }
                         }}
-                        onDownload={() => {
-                          if (book.file_url) {
-                            window.open(`http://localhost:5000${book.file_url}`, '_blank')
+                        onDownload={async () => {
+                          try {
+                            const token = localStorage.getItem('bookgenie_token')
+                            if (token && book.file_url) {
+                              await api.downloadBook(book.file_url, token)
+                            }
+                          } catch (error) {
+                            console.error('Download error:', error)
                           }
                         }}
                       />
@@ -462,9 +467,14 @@ export default function DashboardTab({ onNavigateToTab }) {
           book={selectedBook}
           user={user}
           onClose={() => setSelectedBook(null)}
-          onDownload={() => {
-            if (selectedBook && selectedBook.file_url) {
-              window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
+          onDownload={async () => {
+            try {
+              const token = localStorage.getItem('bookgenie_token')
+              if (token && selectedBook && selectedBook.file_url) {
+                await api.downloadBook(selectedBook.file_url, token)
+              }
+            } catch (error) {
+              console.error('Download error:', error)
             }
           }}
         />

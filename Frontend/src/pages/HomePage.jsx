@@ -220,11 +220,22 @@ export default function HomePage() {
                 showNotification('Please login to download books', 'error')
                 return
               }
-              const book = displayBooks.find(b => b.id === bookId) || selectedBook
-              if (book && book.file_url) {
-                window.open(`http://localhost:5000${book.file_url}`, '_blank')
-              } else {
-                showNotification('Book file not available', 'error')
+              try {
+                const token = localStorage.getItem('bookgenie_token')
+                if (!token) {
+                  showNotification('Please login to download books', 'error')
+                  return
+                }
+                const book = displayBooks.find(b => b.id === bookId) || selectedBook
+                if (book && book.file_url) {
+                  await api.downloadBook(book.file_url, token)
+                  showNotification('Download started', 'success')
+                } else {
+                  showNotification('Book file not available', 'error')
+                }
+              } catch (error) {
+                console.error('Download error:', error)
+                showNotification(error.message || 'Failed to download book', 'error')
               }
             }}
           />
@@ -259,10 +270,25 @@ export default function HomePage() {
             user={user}
             onClose={() => setSelectedBook(null)}
             onDownload={async () => {
-              if (selectedBook && selectedBook.file_url) {
-                window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
-              } else {
-                showNotification('Book file not available', 'error')
+              if (!user) {
+                showNotification('Please login to download books', 'error')
+                return
+              }
+              try {
+                const token = localStorage.getItem('bookgenie_token')
+                if (!token) {
+                  showNotification('Please login to download books', 'error')
+                  return
+                }
+                if (selectedBook && selectedBook.file_url) {
+                  await api.downloadBook(selectedBook.file_url, token)
+                  showNotification('Download started', 'success')
+                } else {
+                  showNotification('Book file not available', 'error')
+                }
+              } catch (error) {
+                console.error('Download error:', error)
+                showNotification(error.message || 'Failed to download book', 'error')
               }
             }}
           />

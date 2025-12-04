@@ -5,8 +5,10 @@ import { X, Download, BookOpen, User, Tag, GraduationCap, Star, FileText, Heart,
 import { BookGenieAPI } from '../services/api'
 import Spinner from './Spinner'
 import Notification from './Notification'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function BookDetailsModal({ book, onClose, onDownload, user }) {
+  const { user: authUser } = useAuth()
   const [reviews, setReviews] = useState([])
   const [averageRating, setAverageRating] = useState(0)
   const [totalReviews, setTotalReviews] = useState(0)
@@ -16,11 +18,14 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
   const [loading, setLoading] = useState(true)
   const [submittingReview, setSubmittingReview] = useState(false)
   const [liking, setLiking] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState('')
   const [notification, setNotification] = useState(null)
   const api = new BookGenieAPI()
+  
+  const currentUser = user || authUser
 
   useEffect(() => {
     if (book) {
@@ -109,6 +114,37 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
+  }
+
+  const handleDownload = async () => {
+    if (!currentUser) {
+      showNotification('Please login to download books', 'error')
+      return
+    }
+    
+    if (!book.file_url) {
+      showNotification('Book file not available', 'error')
+      return
+    }
+
+    setDownloading(true)
+    try {
+      const token = localStorage.getItem('bookgenie_token')
+      if (!token) {
+        showNotification('Please login to download books', 'error')
+        return
+      }
+      await api.downloadBook(book.file_url, token)
+      showNotification('Download started', 'success')
+      if (onDownload) {
+        onDownload()
+      }
+    } catch (error) {
+      console.error('Download error:', error)
+      showNotification(error.message || 'Failed to download book', 'error')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   if (!book) return null
@@ -406,19 +442,29 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
           {/* Footer Actions */}
           <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50">
             <div className="flex flex-col sm:flex-row gap-3">
-              {user && book.file_url ? (
+              {currentUser && book.file_url ? (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={onDownload}
+                  onClick={handleDownload}
+                  disabled={downloading}
                   className="btn-primary flex-1 flex items-center justify-center gap-2"
                 >
-                  <Download className="w-5 h-5" />
-                  Download Book
+                  {downloading ? (
+                    <>
+                      <Spinner size="sm" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Download Book
+                    </>
+                  )}
                 </motion.button>
               ) : (
                 <div className="flex-1 py-3 px-4 bg-gray-100 rounded-lg text-center text-gray-600 text-sm font-medium">
-                  {!user ? 'Login to download this book' : 'Download not available'}
+                  {!currentUser ? 'Login to download this book' : 'Download not available'}
                 </div>
               )}
               <motion.button

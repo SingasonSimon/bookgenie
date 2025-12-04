@@ -24,10 +24,21 @@ export default function SearchTab() {
     try {
       setLoading(true)
       const token = localStorage.getItem('bookgenie_token')
-      const searchResults = await api.search(query, token)
-      setResults(searchResults)
+      const response = await api.search(query, token)
+      // Handle response format: { results: [] } or just array
+      const searchResults = Array.isArray(response) ? response : (response?.results || [])
+      // Filter out negative matches
+      const filteredResults = searchResults.filter(result => {
+        const similarity = result.similarity_score ?? result.relevance_percentage / 100
+        const relevance = result.relevance_percentage ?? (result.similarity_score * 100)
+        return (similarity > 0 && relevance > 0) || 
+               (similarity !== undefined && similarity > 0) ||
+               (relevance !== undefined && relevance > 0)
+      })
+      setResults(filteredResults)
     } catch (error) {
       console.error('Search error:', error)
+      setResults([])
     } finally {
       setLoading(false)
     }
@@ -118,10 +129,18 @@ export default function SearchTab() {
               }
             }
           }}
-          onDownloadBook={(bookId) => {
+          onDownloadBook={async (bookId) => {
             const book = results.find(r => (r.book || r).id === bookId)
             if (book && (book.book || book).file_url) {
-              window.open(`http://localhost:5000${(book.book || book).file_url}`, '_blank')
+              try {
+                const token = localStorage.getItem('bookgenie_token')
+                const bookData = book.book || book
+                if (token && bookData && bookData.file_url) {
+                  await api.downloadBook(bookData.file_url, token)
+                }
+              } catch (error) {
+                console.error('Download error:', error)
+              }
             }
           }}
         />
@@ -132,9 +151,14 @@ export default function SearchTab() {
           book={selectedBook}
           user={user}
           onClose={() => setSelectedBook(null)}
-          onDownload={() => {
-            if (selectedBook && selectedBook.file_url) {
-              window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')
+          onDownload={async () => {
+            try {
+              const token = localStorage.getItem('bookgenie_token')
+              if (token && selectedBook && selectedBook.file_url) {
+                await api.downloadBook(selectedBook.file_url, token)
+              }
+            } catch (error) {
+              console.error('Download error:', error)
             }
           }}
         />

@@ -124,6 +124,37 @@ export class BookGenieAPI {
     return data.results || []
   }
 
+  async downloadBook(fileUrl, token) {
+    try {
+      const url = fileUrl.startsWith('http') ? fileUrl : `http://localhost:5000${fileUrl}`
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Download failed' }))
+        throw new Error(error.error || 'Download failed')
+      }
+
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileUrl.split('/').pop() || 'book.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      return { success: true }
+    } catch (error) {
+      console.error('Download error:', error)
+      throw error
+    }
+  }
+
   async getBook(bookId, token) {
     try {
       const data = await this.request(`/books/${bookId}`, {
