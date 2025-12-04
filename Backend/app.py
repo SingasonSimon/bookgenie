@@ -402,7 +402,14 @@ def init_db():
                   name TEXT UNIQUE NOT NULL,
                   description TEXT,
                   color TEXT DEFAULT '#667eea',
+                  icon TEXT DEFAULT 'BookOpen',
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Add icon column if it doesn't exist (migration)
+    try:
+        c.execute('ALTER TABLE categories ADD COLUMN icon TEXT DEFAULT "BookOpen"')
+    except sqlite3.OperationalError:
+        pass
     
     # Create indexes for better query performance
     print("Creating database indexes...")
@@ -1693,6 +1700,14 @@ def auth_login():
         user_row = c.fetchone()
         
         if user_row:
+            # Ensure admins always have premium subscription
+            if user_row['role'] == 'admin' and (user_row['subscription_level'] or 'free') != 'premium':
+                c.execute('UPDATE users SET subscription_level = ? WHERE id=?', ('premium', user_row['id']))
+                conn.commit()
+                subscription_level = 'premium'
+            else:
+                subscription_level = user_row['subscription_level'] or 'free'
+            
             # Update last login
             c.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id=?', (user_row['id'],))
             conn.commit()
@@ -1708,7 +1723,7 @@ def auth_login():
                 'avatar': user_row['avatar'] or 'user',
                 'academicLevel': user_row['academic_level'],
                 'role': user_row['role'],
-                'subscriptionLevel': user_row['subscription_level'] or 'free',
+                'subscriptionLevel': subscription_level,
                 'department': user_row['department'] or '',
                 'createdAt': user_row['created_at']
             }
@@ -1755,6 +1770,14 @@ def auth_verify():
         conn.close()
         return jsonify({'success': False, 'error': 'User not found'}), 404
     
+    # Ensure admins always have premium subscription
+    if user_row['role'] == 'admin' and (user_row['subscription_level'] or 'free') != 'premium':
+        c.execute('UPDATE users SET subscription_level = ? WHERE id=?', ('premium', user_row['id']))
+        conn.commit()
+        subscription_level = 'premium'
+    else:
+        subscription_level = user_row['subscription_level'] or 'free'
+    
     user = {
         'id': user_row['id'],
         'email': user_row['email'],
@@ -1763,7 +1786,7 @@ def auth_verify():
         'avatar': user_row['avatar'] or 'user',
         'academicLevel': user_row['academic_level'],
         'role': user_row['role'],
-        'subscriptionLevel': user_row['subscription_level'] or 'free',
+        'subscriptionLevel': subscription_level,
         'department': user_row['department'] or '',
         'createdAt': user_row['created_at']
     }
@@ -2405,6 +2428,10 @@ def get_hybrid_recommendations():
 @app.route('/api/student/dashboard', methods=['GET'])
 @require_auth
 def student_dashboard():
+    # Only allow students to access student dashboard
+    if request.current_user.get('role') == 'admin':
+        return jsonify({'error': 'This endpoint is for students only. Admins should use /api/admin/analytics'}), 403
+    
     user_id = request.current_user['user_id']
     
     # Check cache
@@ -2902,9 +2929,15 @@ def admin_user_detail(user_id):
         if 'role' in data:
             updates.append('role = ?')
             params.append(data['role'])
+            # Automatically set premium subscription for admins
+            if data['role'] == 'admin':
+                updates.append('subscription_level = ?')
+                params.append('premium')
         if 'subscriptionLevel' in data:
-            updates.append('subscription_level = ?')
-            params.append(data['subscriptionLevel'])
+            # Only allow subscription updates if not setting role to admin
+            if 'role' not in data or data.get('role') != 'admin':
+                updates.append('subscription_level = ?')
+                params.append(data['subscriptionLevel'])
         
         if not updates:
             conn.close()
@@ -3295,11 +3328,124 @@ def categories():
             'id': row['id'],
             'name': row['name'],
             'description': row['description'] or '',
-            'color': row['color'] or '#667eea'
+            'color': row['color'] or '#667eea',
+            'icon': row_get(row, 'icon') or 'BookOpen'
         })
     
     conn.close()
     return jsonify(categories)
+
+@app.route('/api/admin/categories', methods=['POST'])
+@require_admin
+def admin_create_category():
+    """Create a new category (admin only)"""
+    data = request.json
+    name = data.get('name')
+    description = data.get('description', '')
+    color = data.get('color', '#667eea')
+    
+    if not name:
+        return jsonify({'error': 'Category name is required'}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    try:
+        c.execute('''INSERT INTO categories (name, description, color)
+                     VALUES (?, ?, ?)''', (name, description, color))
+        conn.commit()
+        category_id = c.lastrowid
+        
+        c.execute('SELECT * FROM categories WHERE id=?', (category_id,))
+        row = c.fetchone()
+        conn.close()
+        
+        return jsonify({
+            'id': row['id'],
+            'name': row['name'],
+            'description': row['description'] or '',
+            'color': row['color'] or '#667eea',
+            'icon': row['icon'] or 'BookOpen'
+        }), 201
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Category with this name already exists'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/categories/<int:category_id>', methods=['PUT', 'DELETE'])
+@require_admin
+def admin_manage_category(category_id):
+    """Update or delete a category (admin only)"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Verify category exists
+    c.execute('SELECT * FROM categories WHERE id=?', (category_id,))
+    category = c.fetchone()
+    
+    if not category:
+        conn.close()
+        return jsonify({'error': 'Category not found'}), 404
+    
+    if request.method == 'PUT':
+        # Update category
+        data = request.json
+        updates = []
+        params = []
+        
+        if 'name' in data:
+            updates.append('name = ?')
+            params.append(data['name'])
+        if 'description' in data:
+            updates.append('description = ?')
+            params.append(data['description'])
+        if 'color' in data:
+            updates.append('color = ?')
+            params.append(data['color'])
+        if 'icon' in data:
+            updates.append('icon = ?')
+            params.append(data['icon'])
+        
+        if not updates:
+            conn.close()
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        params.append(category_id)
+        try:
+            query = f"UPDATE categories SET {', '.join(updates)} WHERE id=?"
+            c.execute(query, params)
+            conn.commit()
+            
+            c.execute('SELECT * FROM categories WHERE id=?', (category_id,))
+            row = c.fetchone()
+            conn.close()
+            
+            return jsonify({
+                'id': row['id'],
+                'name': row['name'],
+                'description': row['description'] or '',
+                'color': row['color'] or '#667eea',
+                'icon': row['icon'] or 'BookOpen'
+            })
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'error': 'Category with this name already exists'}), 400
+        except Exception as e:
+            conn.close()
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        # Delete category
+        try:
+            c.execute('DELETE FROM categories WHERE id=?', (category_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Category deleted successfully'})
+        except Exception as e:
+            conn.close()
+            return jsonify({'error': str(e)}), 500
 
 # ============================================
 # FILE HANDLING HELPERS

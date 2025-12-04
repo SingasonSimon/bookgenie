@@ -27,7 +27,7 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
   return (
     <div className="min-h-screen blob-bg p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <header className="sticky top-4 z-40 mb-6">
+      <header className="sticky top-4 z-30 mb-6">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="glass-effect rounded-xl p-4 sm:p-5">
             <div className="flex justify-between items-center h-18 sm:h-20">
@@ -145,7 +145,7 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
       </header>
 
       {/* Mobile Tabs */}
-      <div className="lg:hidden glass-effect rounded-xl mb-6 px-4 py-3 overflow-x-auto sticky top-20 z-30 max-w-7xl mx-auto">
+      <div className="lg:hidden glass-effect rounded-xl mb-6 px-4 py-3 overflow-x-auto sticky top-20 z-20 max-w-7xl mx-auto">
         <div className="flex gap-2">
           {tabs.map(tab => {
             const Icon = tab.icon

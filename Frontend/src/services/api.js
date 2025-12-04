@@ -282,5 +282,35 @@ export class BookGenieAPI {
       },
     })
   }
+
+  // Admin - Categories
+  async createCategory(data, token) {
+    return this.request('/admin/categories', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCategory(categoryId, data, token) {
+    return this.request(`/admin/categories/${categoryId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCategory(categoryId, token) {
+    return this.request(`/admin/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
 }
 

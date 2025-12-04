@@ -281,7 +281,7 @@ export default function UsersTab() {
         </div>
       )}
 
-      {showViewModal && selectedUser && (
+      {showViewModal && selectedUser && !showEditModal && (
         <UserViewModal
           user={selectedUser}
           onClose={() => {
@@ -290,7 +290,10 @@ export default function UsersTab() {
           }}
           onEdit={() => {
             setShowViewModal(false)
-            setShowEditModal(true)
+            // Small delay to ensure view modal closes before edit opens
+            setTimeout(() => {
+              setShowEditModal(true)
+            }, 100)
           }}
         />
       )}

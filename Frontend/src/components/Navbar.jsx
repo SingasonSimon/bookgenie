@@ -11,7 +11,7 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="sticky top-4 z-40 mb-6"
+      className="sticky top-4 z-30 mb-6"
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="glass-effect rounded-2xl shadow-2xl p-5 sm:p-6 border border-white/50">

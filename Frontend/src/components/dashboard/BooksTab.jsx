@@ -18,6 +18,7 @@ export default function BooksTab() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
   const [selectedBook, setSelectedBook] = useState(null)
   const [bookToDelete, setBookToDelete] = useState(null)
   const [notification, setNotification] = useState(null)
@@ -148,12 +149,15 @@ export default function BooksTab() {
                     if (token) {
                       const bookData = await api.getBook(book.id, token)
                       setSelectedBook(bookData)
+                      setShowViewModal(true)
                     } else {
                       setSelectedBook(book)
+                      setShowViewModal(true)
                     }
                   } catch (error) {
                     console.error('Error fetching book details:', error)
                     setSelectedBook(book)
+                    setShowViewModal(true)
                   }
                 }}
                 onDownload={() => {
@@ -167,9 +171,21 @@ export default function BooksTab() {
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => {
-                    setSelectedBook(book)
-                    setShowEditModal(true)
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('bookgenie_token')
+                      if (token) {
+                        const bookData = await api.getBook(book.id, token)
+                        setSelectedBook(bookData)
+                      } else {
+                        setSelectedBook(book)
+                      }
+                      setShowEditModal(true)
+                    } catch (error) {
+                      console.error('Error fetching book details:', error)
+                      setSelectedBook(book)
+                      setShowEditModal(true)
+                    }
                   }}
                   className="w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center shadow-lg"
                 >
@@ -204,7 +220,7 @@ export default function BooksTab() {
         />
       )}
 
-      {showEditModal && selectedBook && (
+      {showEditModal && selectedBook && !showViewModal && (
         <BookFormModal
           book={selectedBook}
           onClose={() => {
@@ -230,11 +246,14 @@ export default function BooksTab() {
         />
       )}
 
-      {selectedBook && (
+      {showViewModal && selectedBook && !showEditModal && (
         <BookDetailsModal
           book={selectedBook}
           user={user}
-          onClose={() => setSelectedBook(null)}
+          onClose={() => {
+            setShowViewModal(false)
+            setSelectedBook(null)
+          }}
           onDownload={() => {
             if (selectedBook && selectedBook.file_url) {
               window.open(`http://localhost:5000${selectedBook.file_url}`, '_blank')

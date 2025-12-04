@@ -36,7 +36,7 @@ export default function Notification({ message, type = 'info', onClose }) {
         initial={{ x: 400, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 400, opacity: 0 }}
-        className={`fixed top-5 right-5 ${bg} text-white px-6 py-4 rounded-xl shadow-2xl z-50 border-2 ${border} min-w-[300px] max-w-md`}
+        className={`fixed top-5 right-5 ${bg} text-white px-6 py-4 rounded-xl shadow-2xl z-[10000] border-2 ${border} min-w-[300px] max-w-md`}
       >
         <div className="flex items-center gap-3">
           <Icon className="w-5 h-5 flex-shrink-0" />

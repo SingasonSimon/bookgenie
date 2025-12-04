@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Upload, FileText, Image as ImageIcon } from 'lucide-react'
 import Spinner from '../Spinner'
@@ -81,13 +82,13 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -306,5 +307,7 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
       </motion.div>
     </AnimatePresence>
   )
+
+  return typeof window !== 'undefined' ? createPortal(modalContent, document.body) : null
 }
 

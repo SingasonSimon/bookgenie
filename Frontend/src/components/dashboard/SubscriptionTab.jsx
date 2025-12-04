@@ -1,14 +1,46 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Star, Crown, Zap, Check, ArrowUp } from 'lucide-react'
+import { Star, Crown, Zap, Check, ArrowUp, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import PageHeader from '../PageHeader'
 import Spinner from '../Spinner'
+import Notification from '../Notification'
+import { BookGenieAPI } from '../../services/api'
 
 export default function SubscriptionTab() {
-  const { user } = useAuth()
+  const { user, checkAuth } = useAuth()
   const [requestedLevel, setRequestedLevel] = useState('basic')
   const [loading, setLoading] = useState(false)
+  const [notification, setNotification] = useState(null)
+  const [requestHistory, setRequestHistory] = useState([])
+  const api = new BookGenieAPI()
+
+  useEffect(() => {
+    loadSubscriptionInfo()
+  }, [])
+
+  const loadSubscriptionInfo = async () => {
+    try {
+      const token = localStorage.getItem('bookgenie_token')
+      const response = await fetch('http://localhost:5000/api/user/subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setRequestHistory(data.requestHistory || [])
+      }
+    } catch (error) {
+      console.error('Failed to load subscription info:', error)
+    }
+  }
+
+  const showNotification = (message, type = 'info') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 4000)
+  }
 
   const handleRequest = async () => {
     try {
@@ -22,12 +54,20 @@ export default function SubscriptionTab() {
         },
         body: JSON.stringify({ subscription_level: requestedLevel })
       })
+      
       const data = await response.json()
-      if (data.success) {
-        alert('Subscription upgrade requested successfully!')
+      
+      if (response.ok && data.success) {
+        showNotification('Subscription upgrade requested successfully! An admin will review your request.', 'success')
+        await loadSubscriptionInfo()
+        // Refresh user data to get updated subscription status
+        await checkAuth()
+      } else {
+        showNotification(data.error || 'Failed to submit subscription request', 'error')
       }
     } catch (error) {
       console.error('Subscription request error:', error)
+      showNotification('Network error. Please try again.', 'error')
     } finally {
       setLoading(false)
     }
@@ -54,6 +94,9 @@ export default function SubscriptionTab() {
     },
   ]
 
+  const currentLevel = user?.subscriptionLevel || 'free'
+  const hasPendingRequest = requestHistory.some(r => r.status === 'pending')
+
   return (
     <div>
       <PageHeader
@@ -61,6 +104,30 @@ export default function SubscriptionTab() {
         title="Subscription"
         description="Manage your subscription plan"
       />
+
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {hasPendingRequest && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card bg-blue-50 border border-blue-200 mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-blue-900">Subscription Request Pending</p>
+              <p className="text-sm text-blue-700">Your upgrade request is being reviewed by an administrator.</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         {plans.map((plan, idx) => {
@@ -120,23 +187,34 @@ export default function SubscriptionTab() {
               value={requestedLevel}
               onChange={(e) => setRequestedLevel(e.target.value)}
               className="input-field"
+              disabled={hasPendingRequest || currentLevel === 'premium'}
             >
-              <option value="basic">Basic</option>
-              <option value="premium">Premium</option>
+              {currentLevel === 'free' && <option value="basic">Basic</option>}
+              {currentLevel !== 'premium' && <option value="premium">Premium</option>}
             </select>
+            {currentLevel === 'premium' && (
+              <p className="text-sm text-gray-600 mt-2">You already have the highest tier subscription.</p>
+            )}
           </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleRequest}
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+            disabled={loading || hasPendingRequest || currentLevel === 'premium'}
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
                 <Spinner size="sm" />
                 Requesting...
               </>
+            ) : hasPendingRequest ? (
+              <>
+                <AlertCircle className="w-5 h-5" />
+                Request Pending
+              </>
+            ) : currentLevel === 'premium' ? (
+              'Already Premium'
             ) : (
               <>
                 <ArrowUp className="w-5 h-5" />
@@ -146,6 +224,41 @@ export default function SubscriptionTab() {
           </motion.button>
         </div>
       </motion.div>
+
+      {requestHistory.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="card max-w-2xl"
+        >
+          <h2 className="text-xl font-display font-bold mb-4">Request History</h2>
+          <div className="space-y-2">
+            {requestHistory.map((request, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div>
+                  <p className="font-medium text-gray-900 capitalize">
+                    {request.requestedLevel} Subscription
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Requested on {new Date(request.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                  request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {request.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download, BookOpen, User, Tag, GraduationCap, Star, FileText } from 'lucide-react'
 
@@ -11,13 +12,13 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
 
   const tags = book.tags ? (typeof book.tags === 'string' ? book.tags.split(',').filter(Boolean) : book.tags) : []
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -155,5 +156,7 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       </motion.div>
     </AnimatePresence>
   )
+
+  return typeof window !== 'undefined' ? createPortal(modalContent, document.body) : null
 }
 

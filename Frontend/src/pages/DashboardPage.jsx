@@ -35,7 +35,8 @@ export default function DashboardPage() {
       case 'categories':
         return <CategoriesTab />
       case 'subscription':
-        return <SubscriptionTab />
+        // Only allow students to access subscription tab
+        return user?.role !== 'admin' ? <SubscriptionTab /> : <DashboardTab />
       case 'users':
         return user?.role === 'admin' ? <UsersTab /> : null
       case 'analytics':

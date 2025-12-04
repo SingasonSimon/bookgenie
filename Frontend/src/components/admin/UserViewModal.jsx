@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, User, Mail, Search, BookOpen, Clock, TrendingUp, Shield, Star } from 'lucide-react'
 import { BookGenieAPI } from '../../services/api'
@@ -33,13 +34,13 @@ export default function UserViewModal({ user, onClose, onEdit }) {
 
   if (!user) return null
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -66,8 +67,8 @@ export default function UserViewModal({ user, onClose, onEdit }) {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  onClose()
+                onClick={(e) => {
+                  e.stopPropagation()
                   onEdit()
                 }}
                 className="btn-secondary text-sm"
@@ -207,5 +208,7 @@ export default function UserViewModal({ user, onClose, onEdit }) {
       </motion.div>
     </AnimatePresence>
   )
+
+  return typeof window !== 'undefined' ? createPortal(modalContent, document.body) : null
 }
 
