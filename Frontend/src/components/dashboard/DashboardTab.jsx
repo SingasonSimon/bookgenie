@@ -202,11 +202,15 @@ export default function DashboardTab({ onNavigateToTab }) {
     },
     {
       icon: Star,
-      value: stats?.subscription_level || user?.subscriptionLevel || 'Free',
+      value: (() => {
+        const level = stats?.subscription_level || user?.subscriptionLevel || 'free'
+        return level.charAt(0).toUpperCase() + level.slice(1)
+      })(),
       label: 'Subscription',
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
-      capitalize: true,
+      capitalize: false,
+      isString: true,
     },
   ]
 
@@ -285,7 +289,7 @@ export default function DashboardTab({ onNavigateToTab }) {
           ))}
         </div>
       ) : (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isAdmin ? 'xl:grid-cols-6' : 'xl:grid-cols-6'} gap-4 mb-8`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isAdmin ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4 sm:gap-5 mb-8`}>
           {statCards && statCards.length > 0 ? statCards.map((stat, idx) => {
             const Icon = stat.icon
             const isPendingRequests = isAdmin && stat.clickable && stat.value > 0
@@ -303,21 +307,30 @@ export default function DashboardTab({ onNavigateToTab }) {
                 }}
                 className={`card ${isPendingRequests ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${stat.bgColor} flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${stat.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xl sm:text-2xl font-bold text-gray-900 ${stat.capitalize ? 'capitalize' : ''}`}>
-                      {stat.value}
+                <div className="flex flex-col h-full min-h-[140px]">
+                  {/* Icon and Value Section */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className={`w-14 h-14 rounded-xl ${stat.bgColor} flex items-center justify-center flex-shrink-0 shadow-md`}>
+                      <Icon className={`w-7 h-7 ${stat.color}`} />
                     </div>
-                    <div className="text-gray-600 text-xs sm:text-sm font-medium truncate">
+                    <div className="flex-1 min-w-0">
+                      <div className={`${stat.isString ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-bold text-gray-900 ${stat.capitalize ? 'capitalize' : ''} break-words leading-tight`}>
+                        {stat.value}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Label and Additional Info */}
+                  <div className="mt-auto pt-3 border-t border-gray-100">
+                    <div className="text-gray-700 text-sm font-semibold mb-2 leading-tight">
                       {stat.label}
                     </div>
                     {stat.trend !== undefined && stat.trend > 0 && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <TrendingUp className="w-3 h-3 text-green-600" />
-                        <span className="text-xs text-green-600 font-semibold">{stat.trend} {stat.trendLabel}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <TrendingUp className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                        <span className="text-xs text-green-600 font-semibold whitespace-nowrap">
+                          {stat.trend} {stat.trendLabel}
+                        </span>
                       </div>
                     )}
                     {isPendingRequests && (
