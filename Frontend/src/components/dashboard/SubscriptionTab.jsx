@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Star, Crown, Zap, Check, ArrowUp, AlertCircle } from 'lucide-react'
+import { Star, Crown, Zap, Check, ArrowUp, AlertCircle, Clock } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import PageHeader from '../PageHeader'
 import Spinner from '../Spinner'
@@ -129,136 +129,235 @@ export default function SubscriptionTab() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {plans.map((plan, idx) => {
           const Icon = plan.icon
+          const isFree = plan.name === 'Free'
+          const isBasic = plan.name === 'Basic'
+          const isPremium = plan.name === 'Premium'
+          
           return (
             <motion.div
               key={plan.name}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className={`card relative ${plan.current ? 'ring-2 ring-primary-500 shadow-lg' : ''}`}
+              whileHover={{ y: -4, scale: 1.02 }}
+              className={`card relative flex flex-col h-full transition-all ${
+                plan.current 
+                  ? 'ring-2 ring-primary-500 shadow-xl bg-gradient-to-br from-primary-50 to-white' 
+                  : 'hover:shadow-lg'
+              }`}
             >
+              {/* Current Badge */}
               {plan.current && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-primary-600 text-white text-xs font-semibold rounded-full">
-                  Current
-                </div>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-3 right-4 px-4 py-1.5 bg-primary-600 text-white text-xs font-bold rounded-full shadow-lg z-10"
+                >
+                  Current Plan
+                </motion.div>
               )}
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  plan.name === 'Free' ? 'bg-gray-100' :
-                  plan.name === 'Basic' ? 'bg-blue-100' : 'bg-amber-100'
+
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className={`w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md transition-all ${
+                  isFree ? 'bg-gradient-to-br from-gray-100 to-gray-200' :
+                  isBasic ? 'bg-gradient-to-br from-blue-100 to-blue-200' : 
+                  'bg-gradient-to-br from-amber-100 to-yellow-200'
                 }`}>
-                  <Icon className={`w-6 h-6 ${
-                    plan.name === 'Free' ? 'text-gray-600' :
-                    plan.name === 'Basic' ? 'text-blue-600' : 'text-amber-600'
+                  <Icon className={`w-8 h-8 ${
+                    isFree ? 'text-gray-700' :
+                    isBasic ? 'text-blue-700' : 'text-amber-700'
                   }`} />
                 </div>
-                <h3 className="text-xl font-display font-bold text-gray-900">{plan.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-2xl font-display font-bold text-gray-900 mb-1">
+                    {plan.name}
+                  </h3>
+                  {isPremium && (
+                    <div className="flex items-center gap-1">
+                      <Crown className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <ul className="space-y-2 mb-6">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+
+              {/* Features List */}
+              <div className="flex-1 mb-6">
+                <ul className="space-y-3">
+                  {plan.features.map((feature, i) => (
+                    <motion.li
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 + i * 0.05 }}
+                      className="flex items-start gap-3"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Check className="w-3.5 h-3.5 text-green-600" />
+                      </div>
+                      <span className="text-sm text-gray-700 leading-relaxed">{feature}</span>
+                    </motion.li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Footer - Status Indicator */}
+              <div className="pt-4 border-t border-gray-200">
+                {plan.current ? (
+                  <div className="flex items-center justify-center gap-2 py-2 px-4 bg-primary-50 rounded-lg">
+                    <Check className="w-4 h-4 text-primary-600" />
+                    <span className="text-sm font-semibold text-primary-700">Active Plan</span>
+                  </div>
+                ) : (
+                  <div className="text-center py-2">
+                    <span className="text-xs text-gray-500 font-medium">
+                      {isFree ? 'Default Plan' : 'Upgrade Available'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )
         })}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="card max-w-2xl"
-      >
-        <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
-          <ArrowUp className="w-5 h-5 text-primary-600" />
-          Upgrade Plan
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block mb-2 font-medium text-gray-700">Select Plan:</label>
-            <select
-              value={requestedLevel}
-              onChange={(e) => setRequestedLevel(e.target.value)}
-              className="input-field"
-              disabled={hasPendingRequest || currentLevel === 'premium'}
-            >
-              {currentLevel === 'free' && <option value="basic">Basic</option>}
-              {currentLevel !== 'premium' && <option value="premium">Premium</option>}
-            </select>
-            {currentLevel === 'premium' && (
-              <p className="text-sm text-gray-600 mt-2">You already have the highest tier subscription.</p>
-            )}
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRequest}
-            disabled={loading || hasPendingRequest || currentLevel === 'premium'}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Spinner size="sm" />
-                Requesting...
-              </>
-            ) : hasPendingRequest ? (
-              <>
-                <AlertCircle className="w-5 h-5" />
-                Request Pending
-              </>
-            ) : currentLevel === 'premium' ? (
-              'Already Premium'
-            ) : (
-              <>
-                <ArrowUp className="w-5 h-5" />
-                Request Upgrade
-              </>
-            )}
-          </motion.button>
-        </div>
-      </motion.div>
-
-      {requestHistory.length > 0 && (
+      <div className={`grid gap-6 ${requestHistory.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 max-w-2xl'}`}>
+        {/* Upgrade Request Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="card max-w-2xl"
+          transition={{ delay: 0.3 }}
+          className="card"
         >
-          <h2 className="text-xl font-display font-bold mb-4">Request History</h2>
-          <div className="space-y-2">
-            {requestHistory.map((request, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+              <ArrowUp className="w-6 h-6 text-primary-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-display font-bold text-gray-900">Upgrade Plan</h2>
+              <p className="text-sm text-gray-600 mt-0.5">Request a subscription upgrade</p>
+            </div>
+          </div>
+          <div className="space-y-5">
+            <div>
+              <label className="block mb-2 font-semibold text-gray-700 text-sm">
+                Select Plan to Upgrade To:
+              </label>
+              <select
+                value={requestedLevel}
+                onChange={(e) => setRequestedLevel(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none bg-white"
+                disabled={hasPendingRequest || currentLevel === 'premium'}
               >
-                <div>
-                  <p className="font-medium text-gray-900 capitalize">
-                    {request.requestedLevel} Subscription
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Requested on {new Date(request.createdAt).toLocaleDateString()}
+                {currentLevel === 'free' && <option value="basic">Basic Plan</option>}
+                {currentLevel !== 'premium' && <option value="premium">Premium Plan</option>}
+              </select>
+              {currentLevel === 'premium' && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✓ You already have the highest tier subscription.
                   </p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  request.status === 'approved' ? 'bg-green-100 text-green-700' :
-                  request.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                  'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {request.status}
-                </span>
-              </div>
-            ))}
+              )}
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleRequest}
+              disabled={loading || hasPendingRequest || currentLevel === 'premium'}
+              className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="sm" />
+                  <span>Requesting...</span>
+                </>
+              ) : hasPendingRequest ? (
+                <>
+                  <AlertCircle className="w-5 h-5" />
+                  <span>Request Pending</span>
+                </>
+              ) : currentLevel === 'premium' ? (
+                <>
+                  <Crown className="w-5 h-5" />
+                  <span>Already Premium</span>
+                </>
+              ) : (
+                <>
+                  <ArrowUp className="w-5 h-5" />
+                  <span>Request Upgrade</span>
+                </>
+              )}
+            </motion.button>
           </div>
         </motion.div>
-      )}
+
+        {/* Request History Card */}
+        {requestHistory.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="card"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-bold text-gray-900">Request History</h2>
+                <p className="text-sm text-gray-600 mt-0.5">Your subscription requests</p>
+              </div>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+              {requestHistory.map((request, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + idx * 0.05 }}
+                  className="p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 capitalize">
+                        {request.requestedLevel}
+                      </span>
+                      <span className="text-gray-500">Subscription</span>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {request.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Requested on {new Date(request.createdAt).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                  {request.rejectionMessage && (
+                    <p className="text-sm text-red-600 mt-2 italic">
+                      Note: {request.rejectionMessage}
+                    </p>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+
     </div>
   )
 }
