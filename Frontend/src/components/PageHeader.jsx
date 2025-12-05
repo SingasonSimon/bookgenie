@@ -9,10 +9,10 @@ export default function PageHeader({ icon: Icon, title, description, action }) {
       className="mb-8"
     >
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {Icon && (
-            <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center">
-              <Icon className="w-6 h-6 text-primary-600" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
+              <Icon className="w-6 h-6 text-white" />
             </div>
           )}
           <div>
@@ -20,11 +20,11 @@ export default function PageHeader({ icon: Icon, title, description, action }) {
               {title}
             </h1>
             {description && (
-              <p className="text-gray-600 mt-1">{description}</p>
+              <p className="text-gray-600 mt-1.5 text-sm sm:text-base">{description}</p>
             )}
           </div>
         </div>
-        {action && <div>{action}</div>}
+        {action && <div className="flex items-center gap-2">{action}</div>}
       </div>
     </motion.div>
   )

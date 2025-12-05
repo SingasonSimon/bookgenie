@@ -2421,6 +2421,34 @@ def search():
         'search_engine': 'sqlite'
     })
 
+@app.route('/api/search/history', methods=['GET'])
+@require_auth
+def get_search_history():
+    """Get recent search history for the current user"""
+    user_id = request.current_user['user_id']
+    limit = int(request.args.get('limit', 10))
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    c.execute('''SELECT DISTINCT query, MAX(created_at) as last_searched, COUNT(*) as search_count
+                 FROM search_history
+                 WHERE user_id = ?
+                 GROUP BY query
+                 ORDER BY last_searched DESC
+                 LIMIT ?''', (user_id, limit))
+    
+    history = []
+    for row in c.fetchall():
+        history.append({
+            'query': row['query'],
+            'last_searched': row['last_searched'],
+            'search_count': row['search_count']
+        })
+    
+    conn.close()
+    return jsonify({'history': history})
+
 # ============================================
 # HYBRID RECOMMENDATIONS
 # ============================================
@@ -3972,6 +4000,244 @@ def admin_manage_category(category_id):
         except Exception as e:
             conn.close()
             return jsonify({'error': str(e)}), 500
+
+# ============================================
+# PROFILE MANAGEMENT
+# ============================================
+
+@app.route('/api/user/profile', methods=['GET', 'PUT'])
+@require_auth
+def user_profile():
+    """Get or update current user's profile"""
+    user_id = request.current_user['user_id']
+    conn = get_db()
+    c = conn.cursor()
+    
+    if request.method == 'GET':
+        # Get user profile
+        c.execute('''SELECT id, email, first_name, last_name, avatar, academic_level, 
+                     department, role, subscription_level, created_at, last_login
+                     FROM users WHERE id=?''', (user_id,))
+        user_row = c.fetchone()
+        
+        if not user_row:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get user stats
+        c.execute('SELECT COUNT(*) FROM search_history WHERE user_id=?', (user_id,))
+        search_count = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(*) FROM reading_history WHERE user_id=?', (user_id,))
+        reading_count = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(DISTINCT book_id) FROM reading_history WHERE user_id=?', (user_id,))
+        books_read = c.fetchone()[0]
+        
+        profile = {
+            'id': user_row['id'],
+            'email': user_row['email'],
+            'firstName': user_row['first_name'] or '',
+            'lastName': user_row['last_name'] or '',
+            'avatar': user_row['avatar'] or 'user',
+            'academicLevel': user_row['academic_level'] or '',
+            'department': user_row['department'] or '',
+            'role': user_row['role'],
+            'subscriptionLevel': user_row['subscription_level'] or 'free',
+            'createdAt': user_row['created_at'],
+            'lastLogin': row_get(user_row, 'last_login'),
+            'stats': {
+                'searchCount': search_count,
+                'readingCount': reading_count,
+                'booksRead': books_read
+            }
+        }
+        
+        conn.close()
+        return jsonify(profile)
+    
+    elif request.method == 'PUT':
+        # Update user profile
+        data = request.json
+        updates = []
+        params = []
+        
+        if 'firstName' in data:
+            updates.append('first_name = ?')
+            params.append(data['firstName'])
+        if 'lastName' in data:
+            updates.append('last_name = ?')
+            params.append(data['lastName'])
+        if 'email' in data:
+            # Check if email is already taken by another user
+            c.execute('SELECT id FROM users WHERE email = ? AND id != ?', (data['email'], user_id))
+            if c.fetchone():
+                conn.close()
+                return jsonify({'error': 'Email already in use'}), 400
+            updates.append('email = ?')
+            params.append(data['email'])
+        if 'academicLevel' in data:
+            updates.append('academic_level = ?')
+            params.append(data['academicLevel'])
+        if 'department' in data:
+            updates.append('department = ?')
+            params.append(data['department'])
+        
+        if not updates:
+            conn.close()
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        params.append(user_id)
+        try:
+            query = f"UPDATE users SET {', '.join(updates)} WHERE id=?"
+            c.execute(query, params)
+            conn.commit()
+            
+            # Get updated user data
+            c.execute('''SELECT id, email, first_name, last_name, avatar, academic_level, 
+                         department, role, subscription_level FROM users WHERE id=?''', (user_id,))
+            user_row = c.fetchone()
+            
+            updated_profile = {
+                'id': user_row['id'],
+                'email': user_row['email'],
+                'firstName': user_row['first_name'] or '',
+                'lastName': user_row['last_name'] or '',
+                'avatar': user_row['avatar'] or 'user',
+                'academicLevel': user_row['academic_level'] or '',
+                'department': user_row['department'] or '',
+                'role': user_row['role'],
+                'subscriptionLevel': user_row['subscription_level'] or 'free'
+            }
+            
+            conn.close()
+            return jsonify({'success': True, 'message': 'Profile updated successfully', 'user': updated_profile})
+        except Exception as e:
+            conn.close()
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/profile/avatar', methods=['POST', 'DELETE'])
+@require_auth
+def user_profile_avatar():
+    """Upload or delete user profile avatar"""
+    user_id = request.current_user['user_id']
+    
+    if request.method == 'POST':
+        # Upload avatar
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename, ALLOWED_COVER_EXTENSIONS):
+            return jsonify({'error': f'Image type not allowed. Allowed types: {", ".join(ALLOWED_COVER_EXTENSIONS)}'}), 400
+        
+        try:
+            # Create avatars directory if it doesn't exist
+            avatars_dir = os.path.join(UPLOAD_FOLDER, 'avatars')
+            os.makedirs(avatars_dir, exist_ok=True)
+            
+            # Generate unique filename
+            file_ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"avatar_{user_id}_{int(time.time())}.{file_ext}"
+            file_path = os.path.join(avatars_dir, filename)
+            
+            # Save file
+            file.save(file_path)
+            
+            # Update user avatar in database
+            avatar_url = f'/api/files/avatars/{filename}'
+            conn = get_db()
+            c = conn.cursor()
+            
+            # Get old avatar to delete it later
+            c.execute('SELECT avatar FROM users WHERE id=?', (user_id,))
+            old_avatar = c.fetchone()['avatar'] or 'user'
+            
+            c.execute('UPDATE users SET avatar = ? WHERE id=?', (avatar_url, user_id))
+            conn.commit()
+            
+            # Get updated avatar value before closing connection
+            c.execute('SELECT avatar FROM users WHERE id=?', (user_id,))
+            updated_avatar = c.fetchone()['avatar']
+            conn.close()
+            
+            # Delete old avatar file if it's not the default 'user'
+            if old_avatar and old_avatar != 'user' and old_avatar.startswith('/api/files/avatars/'):
+                old_file_path = os.path.join(UPLOAD_FOLDER, 'avatars', os.path.basename(old_avatar))
+                if os.path.exists(old_file_path):
+                    try:
+                        os.remove(old_file_path)
+                    except:
+                        pass  # Ignore errors when deleting old file
+            
+            return jsonify({
+                'success': True,
+                'message': 'Avatar uploaded successfully',
+                'avatar_url': avatar_url,
+                'avatar': updated_avatar
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        # Delete avatar (reset to default)
+        try:
+            conn = get_db()
+            c = conn.cursor()
+            
+            # Get current avatar
+            c.execute('SELECT avatar FROM users WHERE id=?', (user_id,))
+            current_avatar = c.fetchone()['avatar'] or 'user'
+            
+            # Reset to default
+            c.execute('UPDATE users SET avatar = ? WHERE id=?', ('user', user_id))
+            conn.commit()
+            conn.close()
+            
+            # Delete avatar file if it exists
+            if current_avatar and current_avatar != 'user' and current_avatar.startswith('/api/files/avatars/'):
+                file_path = os.path.join(UPLOAD_FOLDER, 'avatars', os.path.basename(current_avatar))
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except:
+                        pass  # Ignore errors when deleting file
+            
+            return jsonify({
+                'success': True,
+                'message': 'Avatar removed successfully'
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files/avatars/<filename>')
+def serve_avatar(filename):
+    """Serve avatar images"""
+    avatars_dir = os.path.join(UPLOAD_FOLDER, 'avatars')
+    file_path = os.path.join(avatars_dir, filename)
+    
+    if os.path.exists(file_path):
+        # Add cache control headers but allow revalidation
+        response = send_file(file_path)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        # Determine content type based on file extension
+        if filename.lower().endswith('.png'):
+            response.headers['Content-Type'] = 'image/png'
+        elif filename.lower().endswith(('.jpg', '.jpeg')):
+            response.headers['Content-Type'] = 'image/jpeg'
+        elif filename.lower().endswith('.gif'):
+            response.headers['Content-Type'] = 'image/gif'
+        elif filename.lower().endswith('.webp'):
+            response.headers['Content-Type'] = 'image/webp'
+        return response
+    else:
+        # Return default avatar or 404
+        return jsonify({'error': 'Avatar not found'}), 404
 
 # ============================================
 # FILE HANDLING HELPERS

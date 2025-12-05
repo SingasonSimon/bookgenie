@@ -8,9 +8,10 @@ import SubscriptionTab from '../components/dashboard/SubscriptionTab'
 import UsersTab from '../components/dashboard/UsersTab'
 import AnalyticsTab from '../components/dashboard/AnalyticsTab'
 import BooksTab from '../components/dashboard/BooksTab'
+import ProfileTab from '../components/dashboard/ProfileTab'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function DashboardPage() {
+function DashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -34,6 +35,8 @@ export default function DashboardPage() {
         return <SearchTab />
       case 'categories':
         return <CategoriesTab />
+      case 'profile':
+        return <ProfileTab />
       case 'subscription':
         // Only allow students to access subscription tab
         return user?.role !== 'admin' ? <SubscriptionTab /> : <DashboardTab />
@@ -63,3 +66,4 @@ export default function DashboardPage() {
   )
 }
 
+export default DashboardPage

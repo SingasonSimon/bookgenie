@@ -10,6 +10,7 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'search', label: 'Search', icon: Search },
     { id: 'categories', label: 'Categories', icon: BookOpen },
+    { id: 'profile', label: 'Profile', icon: User },
   ]
 
   if (user?.role !== 'admin') {

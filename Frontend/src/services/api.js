@@ -446,5 +446,65 @@ export class BookGenieAPI {
       },
     })
   }
+
+  // Get search history
+  async getSearchHistory(token, limit = 10) {
+    return this.request(`/search/history?limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  // Profile Management
+  async getProfile(token) {
+    return this.request('/user/profile', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async updateProfile(data, token) {
+    return this.request('/user/profile', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async uploadAvatar(file, token) {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const url = `${API_BASE}/user/profile/avatar`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type for FormData, browser will set it with boundary
+      },
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }))
+      throw new Error(error.error || 'Upload failed')
+    }
+    
+    return response.json()
+  }
+
+  async deleteAvatar(token) {
+    return this.request('/user/profile/avatar', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
 }
 
