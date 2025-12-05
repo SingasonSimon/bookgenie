@@ -4,7 +4,7 @@ import {
   BookOpen, Plus, Edit, Trash2, ArrowLeft, ChevronRight, BookText, X, Tag, Layers,
   Star, GraduationCap, Search, FileText, Library, School, Award, Trophy, Lightbulb,
   Target, Zap, Sparkles, Brain, Microscope, Calculator, Globe, Music, Paintbrush,
-  Code, Heart, Flame, Leaf, Mountain, Atom, Merge, MoreVertical, AlertTriangle
+  Code, Heart, Flame, Leaf, Mountain, Atom, Merge, AlertTriangle
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import PageHeader from '../PageHeader'
@@ -53,7 +53,6 @@ export default function CategoriesTab() {
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [selectedGenre, setSelectedGenre] = useState(null)
   const [selectedGenresForMerge, setSelectedGenresForMerge] = useState([])
-  const [genreMenuOpen, setGenreMenuOpen] = useState(null)
   const [renamingGenre, setRenamingGenre] = useState(false)
   const [mergingGenres, setMergingGenres] = useState(false)
   const [showDeleteGenreModal, setShowDeleteGenreModal] = useState(false)
@@ -74,16 +73,6 @@ export default function CategoriesTab() {
     }
   }, [])
 
-  // Close genre menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (genreMenuOpen && !event.target.closest('.genre-menu-container')) {
-        setGenreMenuOpen(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [genreMenuOpen])
 
   const loadCategories = async () => {
     try {
@@ -386,99 +375,95 @@ export default function CategoriesTab() {
               <p className="text-sm text-gray-500 mt-2">Genres are automatically extracted from books</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style={{ isolation: 'isolate' }}>
               {genres.map((genre, idx) => {
                 const isSelected = selectedGenresForMerge.includes(genre.genre)
-                const isMenuOpen = genreMenuOpen === genre.genre
                 return (
                   <motion.div
                     key={genre.genre || idx}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className={`card relative overflow-hidden transition-all ${
-                      isSelected ? 'ring-2 ring-purple-500 bg-purple-50' : ''
+                    whileHover={{ y: -2 }}
+                    className={`card relative transition-all ${
+                      isSelected ? 'ring-2 ring-purple-500 bg-purple-50' : 'hover:shadow-lg'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                            isSelected ? 'bg-purple-600' : 'bg-primary-100'
-                          }`}>
-                            <Tag className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-primary-600'}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-display font-bold text-gray-900 truncate">
-                              {genre.genre || 'Unknown'}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {genre.count || 0} {genre.count === 1 ? 'book' : 'books'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="relative genre-menu-container">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setGenreMenuOpen(isMenuOpen ? null : genre.genre)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
-                        >
-                          <MoreVertical className="w-5 h-5 text-gray-600" />
-                        </motion.button>
-                        {isMenuOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="absolute right-0 top-10 z-20 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2"
-                          >
-                            <button
-                              onClick={() => {
-                                setSelectedGenre(genre)
-                                setShowRenameModal(true)
-                                setGenreMenuOpen(null)
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Rename
-                            </button>
-                            <button
-                              onClick={() => {
-                                toggleGenreSelection(genre.genre)
-                                setGenreMenuOpen(null)
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Merge className="w-4 h-4" />
-                              {isSelected ? 'Deselect' : 'Select for Merge'}
-                            </button>
-                            <div className="border-t border-gray-200 my-1"></div>
-                            <button
-                              onClick={() => {
-                                setGenreToDelete(genre)
-                                setShowDeleteGenreModal(true)
-                                setGenreMenuOpen(null)
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete
-                            </button>
-                          </motion.div>
-                        )}
-                      </div>
-                    </div>
+                    {/* Selection Indicator */}
                     {isSelected && (
                       <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute top-2 right-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center shadow-lg z-10"
                       >
                         <span className="text-white text-xs font-bold">✓</span>
                       </motion.div>
                     )}
+
+                    {/* Card Content */}
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all shadow-md ${
+                        isSelected ? 'bg-purple-600' : 'bg-primary-100 group-hover:bg-primary-200'
+                      }`}>
+                        <Tag className={`w-7 h-7 ${isSelected ? 'text-white' : 'text-primary-600'}`} />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-display font-bold text-gray-900 truncate mb-1">
+                          {genre.genre || 'Unknown'}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <BookText className="w-4 h-4 text-gray-400" />
+                          <p className="text-sm text-gray-600 font-medium">
+                            {genre.count || 0} {genre.count === 1 ? 'book' : 'books'}
+                          </p>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Action Buttons (Always Visible) */}
+                    <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          setSelectedGenre(genre)
+                          setShowRenameModal(true)
+                        }}
+                        className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        Rename
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => toggleGenreSelection(genre.genre)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                            : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                        }`}
+                      >
+                        <Merge className="w-3.5 h-3.5" />
+                        {isSelected ? 'Deselect' : 'Merge'}
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          setGenreToDelete(genre)
+                          setShowDeleteGenreModal(true)
+                        }}
+                        className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </motion.button>
+                    </div>
                   </motion.div>
                 )
               })}
