@@ -111,12 +111,10 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
     try {
       const token = localStorage.getItem('bookgenie_token')
       const result = await api.createBookReview(book.id, reviewRating, reviewComment, token)
-      console.log('Review submitted:', result)
       
       // Record review interaction
       try {
         await api.recordInteraction(book.id, 'review', reviewRating / 5.0, token)
-        console.log('Review interaction recorded')
       } catch (err) {
         console.error('Error recording review interaction:', err)
       }
@@ -162,7 +160,6 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       // Record reading session (default 5 minutes, user can adjust later)
       try {
         const readingResult = await api.recordReading(book.id, 5, token)
-        console.log('Reading session recorded:', readingResult)
       } catch (err) {
         console.error('Error recording reading session:', err)
         // Don't fail the download if recording fails
@@ -171,7 +168,6 @@ export default function BookDetailsModal({ book, onClose, onDownload, user }) {
       // Also record download interaction
       try {
         const interactionResult = await api.recordInteraction(book.id, 'download', 1.0, token)
-        console.log('Download interaction recorded:', interactionResult)
       } catch (err) {
         console.error('Error recording interaction:', err)
       }

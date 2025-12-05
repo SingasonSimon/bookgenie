@@ -30,10 +30,8 @@ export default function ProfileTab() {
     loadProfile()
   }, [])
 
-  // Update avatar preview when profile changes
   useEffect(() => {
     if (profile && profile.avatar) {
-      console.log('Profile avatar changed, updating preview:', profile.avatar)
       updateAvatarPreview(profile.avatar)
     }
   }, [profile?.avatar])
@@ -52,7 +50,6 @@ export default function ProfileTab() {
         department: data.department || '',
       })
       
-      // Set avatar preview from profile data
       updateAvatarPreview(data.avatar)
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -63,34 +60,25 @@ export default function ProfileTab() {
   }
 
   const updateAvatarPreview = (avatar) => {
-    console.log('updateAvatarPreview called with:', avatar)
-    
     if (avatar && avatar !== 'user') {
       let url = null
-      // Check if it's already a full URL
+      
       if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
         url = avatar.includes('?t=') ? avatar : `${avatar}?t=${Date.now()}`
-      } 
-      // Check if it's a relative path
-      else if (avatar.startsWith('/api/files/avatars/')) {
+      } else if (avatar.startsWith('/api/files/avatars/')) {
         url = `http://localhost:5000${avatar}?t=${Date.now()}`
-      }
-      // Check if it's just a filename
-      else if (avatar.includes('.')) {
+      } else if (avatar.includes('.')) {
         url = `http://localhost:5000/api/files/avatars/${avatar}?t=${Date.now()}`
       }
       
       if (url) {
-        console.log('Setting avatar URL to:', url)
         setAvatarUrl(url)
         setAvatarPreview(url)
       } else {
-        console.log('No valid URL found, clearing preview')
         setAvatarUrl(null)
         setAvatarPreview(null)
       }
     } else {
-      console.log('Avatar is user or empty, clearing preview')
       setAvatarUrl(null)
       setAvatarPreview(null)
     }
@@ -130,7 +118,6 @@ export default function ProfileTab() {
     const file = e.target.files[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
       showNotification('Invalid file type. Please upload an image (PNG, JPG, GIF, or WEBP)', 'error')
@@ -138,7 +125,6 @@ export default function ProfileTab() {
       return
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       showNotification('File size too large. Maximum size is 5MB', 'error')
       e.target.value = ''
@@ -164,18 +150,13 @@ export default function ProfileTab() {
       const token = localStorage.getItem('bookgenie_token')
       const response = await api.uploadAvatar(pendingAvatarFile, token)
       
-      console.log('Upload response:', response)
-      
       if (response.success) {
         showNotification('Avatar uploaded successfully', 'success')
         setPendingAvatarFile(null)
         
-        // Get the avatar URL from response
         const avatarToUse = response.avatar || response.avatar_url
-        console.log('✅ Upload successful! Avatar to use:', avatarToUse)
         
         if (avatarToUse) {
-          // Build the full URL with cache-busting
           let avatarUrl = avatarToUse
           if (avatarToUse.startsWith('/api/files/avatars/')) {
             avatarUrl = `http://localhost:5000${avatarToUse}?t=${Date.now()}`
@@ -183,30 +164,22 @@ export default function ProfileTab() {
             avatarUrl = `http://localhost:5000/api/files/avatars/${avatarToUse}?t=${Date.now()}`
           }
           
-          console.log('📸 Setting avatar preview to:', avatarUrl)
-          
-          // Update preview immediately with server URL
           setAvatarUrl(avatarUrl)
           setAvatarPreview(avatarUrl)
-          
-          // Also update profile state immediately
           setProfile(prev => prev ? { ...prev, avatar: avatarToUse } : prev)
           
-          // Small delay before reloading to ensure image is ready
           setTimeout(async () => {
             await loadProfile()
           }, 500)
         } else {
-          // If no avatar in response, reload profile
           await loadProfile()
         }
         
-        await checkAuth() // Refresh auth context
+        await checkAuth()
       }
     } catch (error) {
       console.error('Error uploading avatar:', error)
       showNotification(error.message || 'Failed to upload avatar', 'error')
-      // Keep preview but mark as pending
     } finally {
       setUploading(false)
     }
@@ -214,7 +187,6 @@ export default function ProfileTab() {
 
   const handleCancelAvatarUpload = () => {
     setPendingAvatarFile(null)
-    // Restore previous avatar preview
     if (profile) {
       updateAvatarPreview(profile.avatar)
     } else {
@@ -295,20 +267,13 @@ export default function ProfileTab() {
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg mx-auto mb-4 relative">
                   {avatarPreview ? (
                     <img
-                      key={avatarUrl || avatarPreview} // Force re-render when URL changes
+                      key={avatarUrl || avatarPreview}
                       src={avatarPreview}
                       alt="Profile"
                       className="w-full h-full object-cover"
-                      onLoad={() => {
-                        console.log('✅ Avatar image loaded successfully:', avatarPreview)
-                      }}
                       onError={(e) => {
-                        // If image fails to load, show initials instead
-                        console.error('❌ Failed to load avatar image:', avatarPreview)
-                        console.error('Attempting to load from:', avatarPreview)
                         e.target.style.display = 'none'
                         const parent = e.target.parentElement
-                        // Remove any existing span
                         const existingSpan = parent.querySelector('span')
                         if (existingSpan) {
                           existingSpan.remove()
@@ -316,7 +281,6 @@ export default function ProfileTab() {
                         const span = document.createElement('span')
                         span.textContent = profile.firstName?.[0] || profile.email?.[0] || 'U'
                         parent.appendChild(span)
-                        // Clear preview on error to show initials
                         setAvatarPreview(null)
                         setAvatarUrl(null)
                       }}

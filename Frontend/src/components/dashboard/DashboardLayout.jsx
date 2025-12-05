@@ -53,6 +53,8 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
     )
   }
 
+  // Profile tab is handled separately via dropdown menu, not in navigation tabs
+
   return (
     <div className="min-h-screen blob-bg p-2 sm:p-4 md:p-6 lg:p-8">
       {/* Header */}

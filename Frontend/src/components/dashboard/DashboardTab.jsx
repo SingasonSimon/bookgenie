@@ -46,7 +46,6 @@ export default function DashboardTab({ onNavigateToTab }) {
       if (isAdmin) {
         // Load admin analytics (add cache-busting timestamp)
         const analyticsData = await api.getAnalytics(token)
-        console.log('Admin Analytics Data:', analyticsData) // Debug log
         setAnalytics(analyticsData)
       } else {
         // Load student dashboard (add cache-busting timestamp)
@@ -62,10 +61,6 @@ export default function DashboardTab({ onNavigateToTab }) {
         }
         
         const data = await response.json()
-        console.log('Student Dashboard Data:', data) // Debug log
-        console.log('Books Read:', data.stats?.books_read)
-        console.log('Reading Sessions:', data.stats?.total_reading)
-        console.log('Recently Read:', data.recently_read)
         
         setStats(data.stats)
         setRecommendedBooks(data.recommended_books || [])
@@ -194,7 +189,7 @@ export default function DashboardTab({ onNavigateToTab }) {
         description={
           isAdmin 
             ? "System overview and key metrics" 
-            : `Welcome back, ${user?.firstName || user?.email?.split('@')[0] || 'User'}!${isPremium ? ' 🎉 Premium Member' : ''}`
+            : `Welcome back, ${user?.firstName || user?.email?.split('@')[0] || 'User'}!${isPremium ? ' (Premium Member)' : ''}`
         }
         action={
           <motion.button

@@ -31,11 +31,11 @@ npm run build
 
 ## Features
 
-- ✅ Modern, responsive UI
-- ✅ Login/Register with JWT
-- ✅ Semantic search
-- ✅ Book browsing and filtering
-- ✅ Real-time notifications
-- ✅ Loading states
-- ✅ Error handling
+- Modern, responsive UI
+- Login/Register with JWT
+- Semantic search
+- Book browsing and filtering
+- Real-time notifications
+- Loading states
+- Error handling
 
