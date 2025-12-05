@@ -1,20 +1,42 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Plus, Edit, Trash2, ArrowLeft, ChevronRight, BookText, X } from 'lucide-react'
+import { 
+  BookOpen, Plus, Edit, Trash2, ArrowLeft, ChevronRight, BookText, X, Tag, Layers,
+  Star, GraduationCap, Search, FileText, Library, School, Award, Trophy, Lightbulb,
+  Target, Zap, Sparkles, Brain, Microscope, Calculator, Globe, Music, Paintbrush,
+  Code, Heart, Flame, Leaf, Mountain, Atom, Merge, MoreVertical, AlertTriangle
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import PageHeader from '../PageHeader'
 import { GridSkeleton } from '../LoadingSkeleton'
 import CategoryFormModal from '../admin/CategoryFormModal'
 import DeleteConfirmModal from '../admin/DeleteConfirmModal'
+import GenreRenameModal from '../admin/GenreRenameModal'
+import GenreMergeModal from '../admin/GenreMergeModal'
 import Notification from '../Notification'
 import BookCard from '../BookCard'
 import BookDetailsModal from '../BookDetailsModal'
 import { BookGenieAPI } from '../../services/api'
 
+// Icon mapping for categories
+const ICON_MAP = {
+  BookOpen, Star, GraduationCap, BookText, Tag, Search, FileText, Library,
+  School, Award, Trophy, Lightbulb, Target, Zap, Sparkles, Brain,
+  Microscope, Calculator, Globe, Music, Paintbrush, Code, Heart, Flame,
+  Leaf, Mountain, Atom
+}
+
+const getIconComponent = (iconName) => {
+  return ICON_MAP[iconName] || BookOpen
+}
+
 export default function CategoriesTab() {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('categories') // 'categories' or 'genres'
   const [categories, setCategories] = useState([])
+  const [genres, setGenres] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingGenres, setLoadingGenres] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -27,6 +49,16 @@ export default function CategoriesTab() {
   const [selectedBook, setSelectedBook] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState(null)
+  const [showRenameModal, setShowRenameModal] = useState(false)
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [selectedGenre, setSelectedGenre] = useState(null)
+  const [selectedGenresForMerge, setSelectedGenresForMerge] = useState([])
+  const [genreMenuOpen, setGenreMenuOpen] = useState(null)
+  const [renamingGenre, setRenamingGenre] = useState(false)
+  const [mergingGenres, setMergingGenres] = useState(false)
+  const [showDeleteGenreModal, setShowDeleteGenreModal] = useState(false)
+  const [genreToDelete, setGenreToDelete] = useState(null)
+  const [deletingGenre, setDeletingGenre] = useState(false)
   const api = new BookGenieAPI()
   const isAdmin = user?.role === 'admin'
 
@@ -37,18 +69,110 @@ export default function CategoriesTab() {
 
   useEffect(() => {
     loadCategories()
+    if (isAdmin) {
+      loadGenres()
+    }
   }, [])
+
+  // Close genre menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (genreMenuOpen && !event.target.closest('.genre-menu-container')) {
+        setGenreMenuOpen(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [genreMenuOpen])
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories')
-      const data = await response.json()
+      const data = await api.getCategories()
       setCategories(data)
     } catch (error) {
       console.error('Categories error:', error)
       showNotification('Failed to load categories', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadGenres = async () => {
+    try {
+      setLoadingGenres(true)
+      const token = localStorage.getItem('bookgenie_token')
+      if (token) {
+        const data = await api.getGenres(token)
+        setGenres(data.genres || [])
+      }
+    } catch (error) {
+      console.error('Genres error:', error)
+      showNotification('Failed to load genres', 'error')
+    } finally {
+      setLoadingGenres(false)
+    }
+  }
+
+  const handleRenameGenre = async (newGenre) => {
+    try {
+      setRenamingGenre(true)
+      const token = localStorage.getItem('bookgenie_token')
+      await api.renameGenre(selectedGenre.genre, newGenre, token)
+      showNotification(`Genre renamed from "${selectedGenre.genre}" to "${newGenre}"`, 'success')
+      await loadGenres()
+      setShowRenameModal(false)
+      setSelectedGenre(null)
+    } catch (error) {
+      console.error('Rename genre error:', error)
+      showNotification(error.message || 'Failed to rename genre', 'error')
+    } finally {
+      setRenamingGenre(false)
+    }
+  }
+
+  const handleMergeGenres = async (sourceGenres, targetGenre) => {
+    try {
+      setMergingGenres(true)
+      const token = localStorage.getItem('bookgenie_token')
+      await api.mergeGenres(sourceGenres, targetGenre, token)
+      showNotification(`Merged ${sourceGenres.length} genre(s) into "${targetGenre}"`, 'success')
+      await loadGenres()
+      setShowMergeModal(false)
+      setSelectedGenresForMerge([])
+    } catch (error) {
+      console.error('Merge genres error:', error)
+      showNotification(error.message || 'Failed to merge genres', 'error')
+    } finally {
+      setMergingGenres(false)
+    }
+  }
+
+  const toggleGenreSelection = (genre) => {
+    setSelectedGenresForMerge(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre)
+      } else {
+        return [...prev, genre]
+      }
+    })
+  }
+
+  const handleDeleteGenre = async () => {
+    if (!genreToDelete) return
+    
+    try {
+      setDeletingGenre(true)
+      const token = localStorage.getItem('bookgenie_token')
+      await api.deleteGenre(genreToDelete.genre, token)
+      showNotification(`Genre "${genreToDelete.genre}" deleted. Removed from ${genreToDelete.count} book(s).`, 'success')
+      await loadGenres()
+      setShowDeleteGenreModal(false)
+      setGenreToDelete(null)
+    } catch (error) {
+      console.error('Delete genre error:', error)
+      showNotification(error.message || 'Failed to delete genre', 'error')
+    } finally {
+      setDeletingGenre(false)
     }
   }
 
@@ -125,9 +249,9 @@ export default function CategoriesTab() {
     <div>
       <PageHeader
         icon={BookOpen}
-        title="Categories"
-        description={isAdmin ? "Manage book categories" : "Browse by subject area"}
-        action={isAdmin ? (
+        title="Categories & Genres"
+        description={isAdmin ? "Manage book categories and genres" : "Browse by subject area"}
+        action={isAdmin && activeTab === 'categories' ? (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -143,6 +267,57 @@ export default function CategoriesTab() {
         ) : null}
       />
 
+      {/* Tabs for Admin */}
+      {isAdmin && (
+        <div className="mb-6 flex gap-2 border-b border-gray-200">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('categories')}
+            className={`px-6 py-3 font-semibold transition-colors relative ${
+              activeTab === 'categories'
+                ? 'text-primary-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5" />
+              <span>Categories</span>
+            </div>
+            {activeTab === 'categories' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"
+              />
+            )}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              setActiveTab('genres')
+              loadGenres()
+            }}
+            className={`px-6 py-3 font-semibold transition-colors relative ${
+              activeTab === 'genres'
+                ? 'text-primary-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              <span>Genres</span>
+            </div>
+            {activeTab === 'genres' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"
+              />
+            )}
+          </motion.button>
+        </div>
+      )}
+
       {notification && (
         <Notification
           message={notification.message}
@@ -151,7 +326,166 @@ export default function CategoriesTab() {
         />
       )}
 
-      {loading ? (
+      {/* Genres Tab Content (Admin Only) */}
+      {isAdmin && activeTab === 'genres' ? (
+        <div>
+          {/* Action Bar */}
+          {selectedGenresForMerge.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-purple-50 border-2 border-purple-200 rounded-xl flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <Merge className="w-5 h-5 text-purple-600" />
+                <span className="font-semibold text-purple-900">
+                  {selectedGenresForMerge.length} genre{selectedGenresForMerge.length > 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowMergeModal(true)
+                  }}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <Merge className="w-4 h-4" />
+                  Merge Selected
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedGenresForMerge([])}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Clear
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {loadingGenres ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="card animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                </div>
+              ))}
+            </div>
+          ) : genres.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="card text-center py-16"
+            >
+              <Tag className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-600">No genres found</p>
+              <p className="text-sm text-gray-500 mt-2">Genres are automatically extracted from books</p>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {genres.map((genre, idx) => {
+                const isSelected = selectedGenresForMerge.includes(genre.genre)
+                const isMenuOpen = genreMenuOpen === genre.genre
+                return (
+                  <motion.div
+                    key={genre.genre || idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className={`card relative overflow-hidden transition-all ${
+                      isSelected ? 'ring-2 ring-purple-500 bg-purple-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                            isSelected ? 'bg-purple-600' : 'bg-primary-100'
+                          }`}>
+                            <Tag className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-primary-600'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-display font-bold text-gray-900 truncate">
+                              {genre.genre || 'Unknown'}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {genre.count || 0} {genre.count === 1 ? 'book' : 'books'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="relative genre-menu-container">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setGenreMenuOpen(isMenuOpen ? null : genre.genre)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+                        >
+                          <MoreVertical className="w-5 h-5 text-gray-600" />
+                        </motion.button>
+                        {isMenuOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="absolute right-0 top-10 z-20 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2"
+                          >
+                            <button
+                              onClick={() => {
+                                setSelectedGenre(genre)
+                                setShowRenameModal(true)
+                                setGenreMenuOpen(null)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => {
+                                toggleGenreSelection(genre.genre)
+                                setGenreMenuOpen(null)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Merge className="w-4 h-4" />
+                              {isSelected ? 'Deselect' : 'Select for Merge'}
+                            </button>
+                            <div className="border-t border-gray-200 my-1"></div>
+                            <button
+                              onClick={() => {
+                                setGenreToDelete(genre)
+                                setShowDeleteGenreModal(true)
+                                setGenreMenuOpen(null)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute top-2 right-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center"
+                      >
+                        <span className="text-white text-xs font-bold">✓</span>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card animate-pulse">
@@ -212,7 +546,9 @@ export default function CategoriesTab() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: viewingCategory.color || '#667eea' }}
               >
-                <BookOpen className="w-5 h-5 text-white" />
+                {React.createElement(getIconComponent(viewingCategory.icon || 'BookOpen'), {
+                  className: "w-5 h-5 text-white"
+                })}
               </div>
               <div>
                 <h2 className="text-2xl font-display font-bold text-gray-900">{viewingCategory.name}</h2>
@@ -404,9 +740,9 @@ export default function CategoriesTab() {
                       className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
                       style={{ backgroundColor: category.color || '#667eea' }}
                     >
-                      <BookOpen 
-                        className="w-7 h-7 text-white" 
-                      />
+                      {React.createElement(getIconComponent(category.icon || 'BookOpen'), {
+                        className: "w-7 h-7 text-white"
+                      })}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-xl font-display font-bold mb-1 text-gray-900 truncate">{category.name}</h3>
@@ -494,6 +830,59 @@ export default function CategoriesTab() {
               console.error('Download error:', error)
             }
           }}
+        />
+      )}
+
+      {showRenameModal && selectedGenre && (
+        <GenreRenameModal
+          genre={selectedGenre}
+          onClose={() => {
+            setShowRenameModal(false)
+            setSelectedGenre(null)
+          }}
+          onSave={handleRenameGenre}
+          loading={renamingGenre}
+        />
+      )}
+
+      {showMergeModal && selectedGenresForMerge.length > 0 && (
+        <GenreMergeModal
+          selectedGenres={selectedGenresForMerge}
+          allGenres={genres}
+          onClose={() => {
+            setShowMergeModal(false)
+            setSelectedGenresForMerge([])
+          }}
+          onSave={handleMergeGenres}
+          loading={mergingGenres}
+        />
+      )}
+
+      {showDeleteGenreModal && genreToDelete && (
+        <DeleteConfirmModal
+          title="Delete Genre"
+          message={
+            <div>
+              <p className="mb-3">
+                Are you sure you want to delete the genre <strong>"{genreToDelete.genre}"</strong>?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-semibold mb-1">Warning:</p>
+                  <p>This will remove the genre from <strong>{genreToDelete.count || 0} book(s)</strong>. The books will have no genre assigned.</p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-gray-600">This action cannot be undone.</p>
+            </div>
+          }
+          itemName={genreToDelete.genre}
+          onConfirm={handleDeleteGenre}
+          onCancel={() => {
+            setShowDeleteGenreModal(false)
+            setGenreToDelete(null)
+          }}
+          loading={deletingGenre}
         />
       )}
     </div>

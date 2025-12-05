@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Upload, FileText, Image as ImageIcon } from 'lucide-react'
 import Spinner from '../Spinner'
+import { BookGenieAPI } from '../../services/api'
 
 export default function BookFormModal({ book, onClose, onSave, onUploadFile, onUploadCover }) {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
     author: '',
     abstract: '',
     genre: '',
+    category: '',
     academic_level: '',
     subscription_level: 'free',
     tags: '',
@@ -19,6 +21,14 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
   const [coverFile, setCoverFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [categories, setCategories] = useState([])
+  const [genres, setGenres] = useState([])
+  const [loadingData, setLoadingData] = useState(true)
+  const api = new BookGenieAPI()
+
+  useEffect(() => {
+    loadCategoriesAndGenres()
+  }, [])
 
   useEffect(() => {
     if (book) {
@@ -27,6 +37,7 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
         author: book.author || '',
         abstract: book.abstract || '',
         genre: book.genre || '',
+        category: book.genre || '', // Category matches genre name
         academic_level: book.academic_level || '',
         subscription_level: book.subscription_level || 'free',
         tags: Array.isArray(book.tags) ? book.tags.join(', ') : (book.tags || ''),
@@ -34,6 +45,43 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
       })
     }
   }, [book])
+
+  const loadCategoriesAndGenres = async () => {
+    try {
+      setLoadingData(true)
+      const token = localStorage.getItem('bookgenie_token')
+      
+      // Load categories
+      const categoriesData = await api.getCategories()
+      setCategories(categoriesData || [])
+      
+      // Load genres (if admin)
+      if (token) {
+        try {
+          const genresData = await api.getGenres(token)
+          setGenres(genresData.genres || [])
+        } catch (error) {
+          console.error('Failed to load genres:', error)
+          // If genres endpoint doesn't exist, extract from categories
+          setGenres(categoriesData.map(cat => ({ genre: cat.name, count: cat.book_count || 0 })))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error)
+    } finally {
+      setLoadingData(false)
+    }
+  }
+
+  const handleGenreChange = (e) => {
+    const genre = e.target.value
+    setFormData(prev => ({ ...prev, genre, category: genre }))
+  }
+
+  const handleCategoryChange = (e) => {
+    const category = e.target.value
+    setFormData(prev => ({ ...prev, category, genre: category }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -157,21 +205,55 @@ export default function BookFormModal({ book, onClose, onSave, onUploadFile, onU
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
+                <label className="block mb-2 text-gray-700 font-medium text-sm">Category</label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleCategoryChange}
+                  className="input-field"
+                  disabled={loadingData}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Select a category (will also set genre)</p>
+              </div>
+
+              <div>
                 <label className="block mb-2 text-gray-700 font-medium text-sm">Genre</label>
                 <select
                   name="genre"
                   value={formData.genre}
-                  onChange={handleChange}
+                  onChange={handleGenreChange}
                   className="input-field"
+                  disabled={loadingData}
                 >
                   <option value="">Select Genre</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Biology">Biology</option>
-                  <option value="Chemistry">Chemistry</option>
-                  <option value="Literature">Literature</option>
+                  {genres.length > 0 ? (
+                    genres.map((genreItem, idx) => (
+                      <option key={idx} value={genreItem.genre || genreItem}>
+                        {genreItem.genre || genreItem} {genreItem.count ? `(${genreItem.count})` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Computer Science">Computer Science</option>
+                      <option value="Mathematics">Mathematics</option>
+                      <option value="Physics">Physics</option>
+                      <option value="Biology">Biology</option>
+                      <option value="Chemistry">Chemistry</option>
+                      <option value="Literature">Literature</option>
+                      <option value="Economics">Economics</option>
+                      <option value="Environmental Science">Environmental Science</option>
+                      <option value="Social Sciences">Social Sciences</option>
+                    </>
+                  )}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">Or select/create a genre manually</p>
               </div>
 
               <div>

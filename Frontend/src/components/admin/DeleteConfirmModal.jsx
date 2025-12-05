@@ -38,9 +38,13 @@ export default function DeleteConfirmModal({ title, message, itemName, onConfirm
               </motion.button>
             </div>
 
-            <p className="text-gray-600 mb-6">
-              {message || `Are you sure you want to delete "${itemName}"? This action cannot be undone.`}
-            </p>
+            <div className="text-gray-600 mb-6">
+              {typeof message === 'string' ? (
+                <p>{message || `Are you sure you want to delete "${itemName}"? This action cannot be undone.`}</p>
+              ) : (
+                message || <p>Are you sure you want to delete "{itemName}"? This action cannot be undone.</p>
+              )}
+            </div>
 
             <div className="flex gap-3">
               <motion.button

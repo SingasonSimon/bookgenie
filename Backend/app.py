@@ -3889,6 +3889,226 @@ def get_books_by_category(category_name):
         'category': category_name
     })
 
+@app.route('/api/admin/genres', methods=['GET'])
+@require_admin
+def admin_get_genres():
+    """Get all unique genres from books with counts (admin only)"""
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Get all unique genres with book counts
+    c.execute('''
+        SELECT genre, COUNT(*) as count 
+        FROM books 
+        WHERE genre IS NOT NULL AND genre != '' 
+        GROUP BY genre 
+        ORDER BY count DESC, genre ASC
+    ''')
+    
+    genres = []
+    for row in c.fetchall():
+        genres.append({
+            'genre': row['genre'],
+            'count': row['count']
+        })
+    
+    conn.close()
+    return jsonify({'genres': genres})
+
+@app.route('/api/admin/genres/rename', methods=['POST'])
+@require_admin
+def admin_rename_genre():
+    """Rename a genre across all books (admin only)"""
+    data = request.json
+    old_genre = data.get('old_genre')
+    new_genre = data.get('new_genre')
+    
+    if not old_genre or not new_genre:
+        return jsonify({'error': 'Both old_genre and new_genre are required'}), 400
+    
+    if old_genre == new_genre:
+        return jsonify({'error': 'Old and new genre names must be different'}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    try:
+        # Check if new genre already exists
+        c.execute('SELECT COUNT(*) FROM books WHERE genre = ?', (new_genre,))
+        existing_count = c.fetchone()[0]
+        
+        # Update all books with the old genre to the new genre
+        c.execute('UPDATE books SET genre = ? WHERE genre = ?', (new_genre, old_genre))
+        updated_count = c.rowcount
+        conn.commit()
+        
+        # Update Elasticsearch if enabled
+        if es_service.enabled and updated_count > 0:
+            c.execute('SELECT id FROM books WHERE genre = ?', (new_genre,))
+            book_ids = [row['id'] for row in c.fetchall()]
+            # Re-index updated books
+            for book_id in book_ids:
+                c.execute('SELECT * FROM books WHERE id=?', (book_id,))
+                book_row = c.fetchone()
+                if book_row:
+                    book_data = {
+                        'id': book_row['id'],
+                        'title': book_row['title'],
+                        'author': book_row['author'],
+                        'abstract': book_row['abstract'] if book_row['abstract'] else '',
+                        'genre': new_genre,
+                        'academic_level': book_row['academic_level'] if book_row['academic_level'] else '',
+                        'tags': book_row['tags'].split(',') if book_row['tags'] else [],
+                        'subscription_level': row_get(book_row, 'subscription_level', 'free'),
+                        'cover_image': row_get(book_row, 'cover_image', 'book'),
+                        'pages': row_get(book_row, 'pages', 0)
+                    }
+                    es_service.index_book(book_data)
+        
+        # Clear cache
+        clear_cache('books_')
+        
+        conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Renamed genre from "{old_genre}" to "{new_genre}"',
+            'updated_count': updated_count,
+            'merged': existing_count > 0
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/genres/merge', methods=['POST'])
+@require_admin
+def admin_merge_genres():
+    """Merge multiple genres into one (admin only)"""
+    data = request.json
+    source_genres = data.get('source_genres', [])
+    target_genre = data.get('target_genre')
+    
+    if not source_genres or not target_genre:
+        return jsonify({'error': 'source_genres and target_genre are required'}), 400
+    
+    if not isinstance(source_genres, list) or len(source_genres) == 0:
+        return jsonify({'error': 'source_genres must be a non-empty array'}), 400
+    
+    if target_genre in source_genres:
+        return jsonify({'error': 'Target genre cannot be in source genres'}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    try:
+        total_updated = 0
+        genre_placeholders = ','.join(['?'] * len(source_genres))
+        
+        # Update all books with source genres to target genre
+        query = f'UPDATE books SET genre = ? WHERE genre IN ({genre_placeholders})'
+        c.execute(query, [target_genre] + source_genres)
+        total_updated = c.rowcount
+        conn.commit()
+        
+        # Update Elasticsearch if enabled
+        if es_service.enabled and total_updated > 0:
+            c.execute(f'SELECT id FROM books WHERE genre = ?', (target_genre,))
+            book_ids = [row['id'] for row in c.fetchall()]
+            # Re-index updated books
+            for book_id in book_ids:
+                c.execute('SELECT * FROM books WHERE id=?', (book_id,))
+                book_row = c.fetchone()
+                if book_row:
+                    book_data = {
+                        'id': book_row['id'],
+                        'title': book_row['title'],
+                        'author': book_row['author'],
+                        'abstract': book_row['abstract'] if book_row['abstract'] else '',
+                        'genre': target_genre,
+                        'academic_level': book_row['academic_level'] if book_row['academic_level'] else '',
+                        'tags': book_row['tags'].split(',') if book_row['tags'] else [],
+                        'subscription_level': row_get(book_row, 'subscription_level', 'free'),
+                        'cover_image': row_get(book_row, 'cover_image', 'book'),
+                        'pages': row_get(book_row, 'pages', 0)
+                    }
+                    es_service.index_book(book_data)
+        
+        # Clear cache
+        clear_cache('books_')
+        
+        conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Merged {len(source_genres)} genre(s) into "{target_genre}"',
+            'updated_count': total_updated
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/genres/delete', methods=['POST'])
+@require_admin
+def admin_delete_genre():
+    """Delete a genre by setting genre to NULL for all books with that genre (admin only)"""
+    data = request.json
+    genre = data.get('genre')
+    
+    if not genre:
+        return jsonify({'error': 'Genre is required'}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    try:
+        # Get count of books that will be affected
+        c.execute('SELECT COUNT(*) FROM books WHERE genre = ?', (genre,))
+        book_count = c.fetchone()[0]
+        
+        if book_count == 0:
+            conn.close()
+            return jsonify({'error': 'Genre not found or has no books'}), 404
+        
+        # Get book IDs for Elasticsearch update
+        c.execute('SELECT id FROM books WHERE genre = ?', (genre,))
+        book_ids = [row['id'] for row in c.fetchall()]
+        
+        # Set genre to NULL for all books with this genre
+        c.execute('UPDATE books SET genre = NULL WHERE genre = ?', (genre,))
+        updated_count = c.rowcount
+        conn.commit()
+        
+        # Update Elasticsearch if enabled
+        if es_service.enabled and updated_count > 0:
+            for book_id in book_ids:
+                c.execute('SELECT * FROM books WHERE id=?', (book_id,))
+                book_row = c.fetchone()
+                if book_row:
+                    book_data = {
+                        'id': book_row['id'],
+                        'title': book_row['title'],
+                        'author': book_row['author'],
+                        'abstract': book_row['abstract'] if book_row['abstract'] else '',
+                        'genre': '',  # Empty genre
+                        'academic_level': book_row['academic_level'] if book_row['academic_level'] else '',
+                        'tags': book_row['tags'].split(',') if book_row['tags'] else [],
+                        'subscription_level': row_get(book_row, 'subscription_level', 'free'),
+                        'cover_image': row_get(book_row, 'cover_image', 'book'),
+                        'pages': row_get(book_row, 'pages', 0)
+                    }
+                    es_service.index_book(book_data)
+        
+        # Clear cache
+        clear_cache('books_')
+        
+        conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Deleted genre "{genre}" and removed it from {updated_count} book(s)',
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/categories', methods=['POST'])
 @require_admin
 def admin_create_category():

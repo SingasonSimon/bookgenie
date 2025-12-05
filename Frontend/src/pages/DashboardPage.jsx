@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import DashboardLayout from '../components/dashboard/DashboardLayout'
 import DashboardTab from '../components/dashboard/DashboardTab'
 import SearchTab from '../components/dashboard/SearchTab'
@@ -14,7 +14,24 @@ import { useAuth } from '../contexts/AuthContext'
 function DashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [searchParams, setSearchParams] = useSearchParams()
+  
+  // Get tab from URL or localStorage, default to 'dashboard'
+  const getInitialTab = () => {
+    const urlTab = searchParams.get('tab')
+    if (urlTab) return urlTab
+    const savedTab = localStorage.getItem('dashboard_active_tab')
+    return savedTab || 'dashboard'
+  }
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab)
+  
+  // Update URL and localStorage when tab changes
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    setSearchParams({ tab })
+    localStorage.setItem('dashboard_active_tab', tab)
+  }
 
   useEffect(() => {
     if (!user) {
@@ -57,7 +74,7 @@ function DashboardPage() {
     <DashboardLayout
       user={user}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       onLogout={handleLogout}
       onHomeClick={() => navigate('/')}
     >

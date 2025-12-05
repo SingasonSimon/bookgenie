@@ -447,6 +447,53 @@ export class BookGenieAPI {
     })
   }
 
+  // Get all categories
+  async getCategories() {
+    return this.request('/categories')
+  }
+
+  // Get all unique genres from books
+  async getGenres(token) {
+    return this.request('/admin/genres', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  // Rename a genre
+  async renameGenre(oldGenre, newGenre, token) {
+    return this.request('/admin/genres/rename', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ old_genre: oldGenre, new_genre: newGenre }),
+    })
+  }
+
+  // Merge genres
+  async mergeGenres(sourceGenres, targetGenre, token) {
+    return this.request('/admin/genres/merge', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ source_genres: sourceGenres, target_genre: targetGenre }),
+    })
+  }
+
+  // Delete a genre
+  async deleteGenre(genre, token) {
+    return this.request('/admin/genres/delete', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ genre }),
+    })
+  }
+
   // Get search history
   async getSearchHistory(token, limit = 10) {
     return this.request(`/search/history?limit=${limit}`, {
