@@ -20,6 +20,7 @@ export default function DashboardTab({ onNavigateToTab }) {
   const [recentlyRead, setRecentlyRead] = useState([])
   const [premiumAnalytics, setPremiumAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [selectedBook, setSelectedBook] = useState(null)
   const api = new BookGenieAPI()
   const isAdmin = user?.role === 'admin'
@@ -41,7 +42,12 @@ export default function DashboardTab({ onNavigateToTab }) {
   const loadDashboard = async () => {
     try {
       setLoading(true)
+      setError(null)
       const token = localStorage.getItem('bookgenie_token')
+      
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
       
       if (isAdmin) {
         // Load admin analytics (add cache-busting timestamp)
@@ -57,12 +63,23 @@ export default function DashboardTab({ onNavigateToTab }) {
         })
         
         if (!response.ok) {
-          throw new Error(`Failed to load dashboard: ${response.status}`)
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `Failed to load dashboard: ${response.status}`)
         }
         
         const data = await response.json()
         
-        setStats(data.stats)
+        // Ensure stats object exists with defaults
+        setStats(data.stats || {
+          books_read: 0,
+          total_searches: 0,
+          total_reading: 0,
+          reading_today: 0,
+          searches_today: 0,
+          searches_this_week: 0,
+          reading_this_week: 0,
+          subscription_level: user?.subscriptionLevel || 'free'
+        })
         setRecommendedBooks(data.recommended_books || [])
         setFavoriteGenres(data.favorite_genres || [])
         setRecentlyRead(data.recently_read || [])
@@ -70,6 +87,20 @@ export default function DashboardTab({ onNavigateToTab }) {
       }
     } catch (error) {
       console.error('Dashboard error:', error)
+      setError(error.message || 'Failed to load dashboard data')
+      // Set default stats on error so UI still renders
+      if (!isAdmin) {
+        setStats({
+          books_read: 0,
+          total_searches: 0,
+          total_reading: 0,
+          reading_today: 0,
+          searches_today: 0,
+          searches_this_week: 0,
+          reading_this_week: 0,
+          subscription_level: user?.subscriptionLevel || 'free'
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -128,7 +159,7 @@ export default function DashboardTab({ onNavigateToTab }) {
     },
   ]
 
-  // Student stat cards - Expanded
+  // Student stat cards - Expanded (with safe defaults)
   const studentStatCards = [
     {
       icon: BookOpen,
@@ -171,7 +202,7 @@ export default function DashboardTab({ onNavigateToTab }) {
     },
     {
       icon: Star,
-      value: stats?.subscription_level || 'Free',
+      value: stats?.subscription_level || user?.subscriptionLevel || 'Free',
       label: 'Subscription',
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
@@ -223,16 +254,39 @@ export default function DashboardTab({ onNavigateToTab }) {
         </motion.div>
       )}
 
+      {/* Error Message */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3"
+        >
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-red-900">Error loading dashboard</p>
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => loadDashboard()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </motion.button>
+        </motion.div>
+      )}
+
       {/* Stats Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: isAdmin ? 6 : 6 }).map((_, i) => (
             <StatCardSkeleton key={i} />
           ))}
         </div>
       ) : (
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${isAdmin ? 'xl:grid-cols-6' : 'xl:grid-cols-6'} gap-4 mb-8`}>
-          {statCards.map((stat, idx) => {
+          {statCards && statCards.length > 0 ? statCards.map((stat, idx) => {
             const Icon = stat.icon
             const isPendingRequests = isAdmin && stat.clickable && stat.value > 0
             return (
@@ -275,7 +329,11 @@ export default function DashboardTab({ onNavigateToTab }) {
                 </div>
               </motion.div>
             )
-          })}
+          }) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-gray-500">No statistics available</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -566,7 +624,7 @@ export default function DashboardTab({ onNavigateToTab }) {
       )}
 
       {/* Student Dashboard Content */}
-      {!isAdmin && !loading && stats && (
+      {!isAdmin && !loading && (
         <div className="space-y-6">
           {/* Quick Stats Grid */}
           <motion.div
@@ -578,7 +636,7 @@ export default function DashboardTab({ onNavigateToTab }) {
             <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-blue-900">{stats.searches_today || 0}</div>
+                  <div className="text-2xl font-bold text-blue-900">{stats?.searches_today || 0}</div>
                   <div className="text-sm font-medium text-blue-700 mt-1">Searches Today</div>
                 </div>
                 <Search className="w-10 h-10 text-blue-600 opacity-50" />
@@ -587,7 +645,7 @@ export default function DashboardTab({ onNavigateToTab }) {
             <div className="card bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-green-900">{stats.reading_today || 0}</div>
+                  <div className="text-2xl font-bold text-green-900">{stats?.reading_today || 0}</div>
                   <div className="text-sm font-medium text-green-700 mt-1">Reading Sessions Today</div>
                 </div>
                 <BookMarked className="w-10 h-10 text-green-600 opacity-50" />
@@ -597,7 +655,7 @@ export default function DashboardTab({ onNavigateToTab }) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-2xl font-bold text-purple-900">
-                    {stats.books_read > 0 
+                    {stats?.books_read > 0 
                       ? ((stats.total_reading / stats.books_read) || 0).toFixed(1)
                       : 0}
                   </div>
