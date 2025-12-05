@@ -1,10 +1,39 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutDashboard, Search, BookOpen, Star, Users, BarChart3, BookText, Home, LogOut, User, Shield, ChevronDown, Menu, X } from 'lucide-react'
+import { getAvatarUrl } from '../../utils/avatar'
 
 export default function DashboardLayout({ user, activeTab, onTabChange, onLogout, onHomeClick, children }) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const dropdownRef = useRef(null)
+
+  // Update avatar URL when user changes
+  useEffect(() => {
+    if (user) {
+      const url = getAvatarUrl(user)
+      setAvatarUrl(url)
+    } else {
+      setAvatarUrl(null)
+    }
+  }, [user])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+    }
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showProfileDropdown])
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -85,15 +114,30 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
               </div>
 
               {/* Right Section: Profile */}
-              <div className="relative flex-shrink-0">
+              <div className="relative flex-shrink-0" ref={dropdownRef}>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md text-sm sm:text-base flex-shrink-0">
-                    {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md text-sm sm:text-base flex-shrink-0 overflow-hidden">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                          const parent = e.target.parentElement
+                          const span = document.createElement('span')
+                          span.textContent = user?.firstName?.[0] || user?.email?.[0] || 'U'
+                          parent.appendChild(span)
+                        }}
+                      />
+                    ) : (
+                      <span>{user?.firstName?.[0] || user?.email?.[0] || 'U'}</span>
+                    )}
                   </div>
                   <span className="font-medium text-gray-700 hidden md:inline text-sm lg:text-base">
                     {user?.firstName || user?.email?.split('@')[0] || 'User'}
@@ -110,8 +154,23 @@ export default function DashboardLayout({ user, activeTab, onTabChange, onLogout
                     >
                       <div className="mb-4 pb-4 border-b border-gray-200">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md flex-shrink-0">
-                            {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md flex-shrink-0 overflow-hidden">
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt="Profile"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none'
+                                  const parent = e.target.parentElement
+                                  const span = document.createElement('span')
+                                  span.textContent = user?.firstName?.[0] || user?.email?.[0] || 'U'
+                                  parent.appendChild(span)
+                                }}
+                              />
+                            ) : (
+                              <span>{user?.firstName?.[0] || user?.email?.[0] || 'U'}</span>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-gray-900 truncate text-sm sm:text-base">

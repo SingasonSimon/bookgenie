@@ -4216,28 +4216,35 @@ def user_profile_avatar():
 @app.route('/api/files/avatars/<filename>')
 def serve_avatar(filename):
     """Serve avatar images"""
-    avatars_dir = os.path.join(UPLOAD_FOLDER, 'avatars')
-    file_path = os.path.join(avatars_dir, filename)
-    
-    if os.path.exists(file_path):
+    try:
+        avatars_dir = os.path.join(UPLOAD_FOLDER, 'avatars')
+        file_path = os.path.join(avatars_dir, filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Avatar not found'}), 404
+        
+        # Determine content type based on file extension
+        mimetype = None
+        if filename.lower().endswith('.png'):
+            mimetype = 'image/png'
+        elif filename.lower().endswith(('.jpg', '.jpeg')):
+            mimetype = 'image/jpeg'
+        elif filename.lower().endswith('.gif'):
+            mimetype = 'image/gif'
+        elif filename.lower().endswith('.webp'):
+            mimetype = 'image/webp'
+        
+        # Use send_from_directory like other file endpoints
+        response = send_from_directory(avatars_dir, filename, mimetype=mimetype)
+        
         # Add cache control headers but allow revalidation
-        response = send_file(file_path)
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
-        # Determine content type based on file extension
-        if filename.lower().endswith('.png'):
-            response.headers['Content-Type'] = 'image/png'
-        elif filename.lower().endswith(('.jpg', '.jpeg')):
-            response.headers['Content-Type'] = 'image/jpeg'
-        elif filename.lower().endswith('.gif'):
-            response.headers['Content-Type'] = 'image/gif'
-        elif filename.lower().endswith('.webp'):
-            response.headers['Content-Type'] = 'image/webp'
+        
         return response
-    else:
-        # Return default avatar or 404
-        return jsonify({'error': 'Avatar not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ============================================
 # FILE HANDLING HELPERS

@@ -1,11 +1,40 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, User, LogOut, LayoutDashboard, Shield, ChevronDown } from 'lucide-react'
+import { getAvatarUrl } from '../utils/avatar'
 
 export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
   const navigate = useNavigate()
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const dropdownRef = useRef(null)
+
+  // Update avatar URL when user changes
+  useEffect(() => {
+    if (user) {
+      const url = getAvatarUrl(user)
+      setAvatarUrl(url)
+    } else {
+      setAvatarUrl(null)
+    }
+  }, [user])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+    }
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showProfileDropdown])
 
   return (
     <motion.header
@@ -44,15 +73,30 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
                   <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden lg:inline">Dashboard</span>
                 </motion.button>
-                <div className="relative">
+                <div className="relative" ref={dropdownRef}>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                     className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
                   >
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
-                      {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0 overflow-hidden">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                            const parent = e.target.parentElement
+                            const span = document.createElement('span')
+                            span.textContent = user?.firstName?.[0] || user?.email?.[0] || 'U'
+                            parent.appendChild(span)
+                          }}
+                        />
+                      ) : (
+                        <span>{user?.firstName?.[0] || user?.email?.[0] || 'U'}</span>
+                      )}
                     </div>
                     <span className="font-semibold text-gray-700 text-sm sm:text-base hidden lg:inline">
                       {user?.firstName || user?.email?.split('@')[0] || 'User'}
@@ -69,8 +113,23 @@ export default function Navbar({ user, onLoginClick, onLogout, onAdminClick }) {
                       >
                         <div className="mb-4 pb-4 border-b border-gray-200">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md">
-                              {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold shadow-md overflow-hidden">
+                              {avatarUrl ? (
+                                <img
+                                  src={avatarUrl}
+                                  alt="Profile"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none'
+                                    const parent = e.target.parentElement
+                                    const span = document.createElement('span')
+                                    span.textContent = user?.firstName?.[0] || user?.email?.[0] || 'U'
+                                    parent.appendChild(span)
+                                  }}
+                                />
+                              ) : (
+                                <span>{user?.firstName?.[0] || user?.email?.[0] || 'U'}</span>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-gray-900 truncate">
