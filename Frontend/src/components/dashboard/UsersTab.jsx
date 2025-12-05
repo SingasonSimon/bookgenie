@@ -9,6 +9,7 @@ import SubscriptionRequestModal from '../admin/SubscriptionRequestModal'
 import Notification from '../Notification'
 import { GridSkeleton } from '../LoadingSkeleton'
 import { BookGenieAPI } from '../../services/api'
+import { getAvatarUrl } from '../../utils/avatar'
 
 export default function UsersTab() {
   const [users, setUsers] = useState([])
@@ -184,8 +185,26 @@ export default function UsersTab() {
               className="card-hover"
             >
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-lg shadow-md">
-                  {user.firstName?.[0] || user.email?.[0] || 'U'}
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-lg shadow-md overflow-hidden">
+                  {(() => {
+                    const avatarUrl = getAvatarUrl(user)
+                    return avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={user.firstName || user.email}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                          const parent = e.target.parentElement
+                          const span = document.createElement('span')
+                          span.textContent = user.firstName?.[0] || user.email?.[0] || 'U'
+                          parent.appendChild(span)
+                        }}
+                      />
+                    ) : (
+                      <span>{user.firstName?.[0] || user.email?.[0] || 'U'}</span>
+                    )
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 truncate">

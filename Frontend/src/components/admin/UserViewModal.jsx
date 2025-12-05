@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, User, Mail, Search, BookOpen, Clock, TrendingUp, Shield, Star } from 'lucide-react'
 import { BookGenieAPI } from '../../services/api'
+import { getAvatarUrl } from '../../utils/avatar'
 
 export default function UserViewModal({ user, onClose, onEdit }) {
   const [userDetails, setUserDetails] = useState(null)
@@ -53,8 +54,26 @@ export default function UserViewModal({ user, onClose, onEdit }) {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-lg">
-                {user.firstName?.[0] || user.email?.[0] || 'U'}
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center font-semibold text-lg overflow-hidden">
+                {(() => {
+                  const avatarUrl = getAvatarUrl(user)
+                  return avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={user.firstName || user.email}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        const parent = e.target.parentElement
+                        const span = document.createElement('span')
+                        span.textContent = user.firstName?.[0] || user.email?.[0] || 'U'
+                        parent.appendChild(span)
+                      }}
+                    />
+                  ) : (
+                    <span>{user.firstName?.[0] || user.email?.[0] || 'U'}</span>
+                  )
+                })()}
               </div>
               <div>
                 <h2 className="text-2xl font-display font-bold text-gray-900">
